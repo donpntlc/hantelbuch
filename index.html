@@ -450,7 +450,7 @@ function sEx({name}){
   <div class="stack">${ss.slice(0,12).map(({w,e})=>`<div><div class="spread mini"><span style="font-weight:700">${fDate(w.start)}</span><span class="muted">${esc(w.name)}</span></div><div class="muted mini num">${doneSets(e).map(s=>fmt(num(s.kg))+'×'+num(s.reps)).join(' · ')}</div></div>`).join('')}</div>`
   :'<div class="empty">Noch keine Sätze für diese Übung. Nach dem ersten Training siehst du hier Rekorde und Verlauf.</div>'}`;
 }
-function sConfirm({title,text,yes,act,v,danger}){return `<h2>${title}</h2><p class="muted">${text}</p><div class="stack"><button class="btn ${danger?'danger':'gold'} full" data-act="${act}" data-v="${v||''}">${yes}</button><button class="btn ghost full" data-act="close">Abbrechen</button></div>`}
+function sConfirm({title,text,yes,act,v,danger,alt}){return `<h2>${title}</h2><p class="muted">${text}</p><div class="stack">${alt?`<button class="btn gold full" data-act="${alt.act}">${alt.label}</button>`:''}<button class="btn ${danger?'danger':alt?'ghost':'gold'} full" data-act="${act}" data-v="${v||''}">${yes}</button><button class="btn ghost full" data-act="close">Abbrechen</button></div>`}
 function sSummary({id}){
   const w=S.workouts.find(x=>x.id===id)||S.lastSaved;if(!w)return '';
   return `<div class="eyebrow">Gespeichert</div><h2 style="margin-top:2px">Starkes Training</h2>
@@ -543,7 +543,7 @@ function blankSets(n){return Array.from({length:n},()=>({kg:'',reps:'',done:fals
 function startWorkout(name,exs,rid){S.active={id:uid(),name,start:Date.now(),routineId:rid||null,exercises:exs};S.tab='training';saveActive(true);renderAll();window.scrollTo(0,0)}
 function defaultName(){const h=new Date().getHours();return h<11?'Morgentraining':h<17?'Mittagstraining':'Abendtraining'}
 
-function finishWorkout(){
+function finishWorkout(update){
   const a=clone(S.active);a.end=Date.now();
   a.exercises=a.exercises.map(e=>({...e,sets:e.sets.filter(s=>s.done)})).filter(e=>e.sets.length);
   const prs=[];
@@ -553,9 +553,12 @@ function finishWorkout(){
     else if(top>b.kg)prs.push({name:e.name,kind:'Gewicht',val:fmt(top)+' kg'});}
   a.prs=prs;
   const r=a.routineId&&S.routines.find(x=>x.id===a.routineId);
-  if(r){if(S.active.note!=null)r.note=S.active.note;for(const ae of S.active.exercises){const re=r.exercises.find(x=>x.name===ae.name);if(!re)continue;re.note=ae.note||'';re.next=ae.next||'';re.target=ae.target||'';
-    re.plan=ae.sets.map((st,k)=>{const old=(re.plan||[])[k]||{};return {kg:old.kg!=null?old.kg:st.kg,reps:old.reps!=null?old.reps:st.reps,rpe:old.rpe||'',rest:st.rest||ae.rest||S.restDefault}});re.sets=ae.sets.length}
+  if(r&&update){r.note=S.active.note||'';
+    r.exercises=S.active.exercises.map(ae=>{const d=ae.sets.filter(st=>st.done);const src=d.length?d:ae.sets;
+      return {name:ae.name,note:ae.note||'',next:ae.next||'',target:ae.target||'',rest:(src[0]&&src[0].rest)||ae.rest||S.restDefault,sets:src.length,
+        plan:src.map(st=>({kg:st.kg,reps:st.reps,rpe:st.rpe||'',rest:st.rest||ae.rest||S.restDefault}))}});
     saveMeta()}
+  else if(r){for(const ae of S.active.exercises){const re=r.exercises.find(x=>x.name===ae.name);if(re)re.next=ae.next||''}saveMeta()}
   S.workouts=[a,...S.workouts.filter(w=>w.id!==a.id)];S.lastSaved=a;
   saveWorkout(a);S.active=null;S.rest=null;stopRestAudio();saveActive(true);
   renderAll();openSheet({type:'summary',id:a.id});
@@ -587,8 +590,9 @@ const ACT={
   finish:()=>{const n=S.active.exercises.reduce((a,e)=>a+e.sets.filter(s=>s.done).length,0);
     if(!n)return openSheet({type:'confirm',title:'Noch kein Satz abgehakt',text:'Hake mindestens einen Satz ab, damit das Training gespeichert wird. Oder verwirf es.',yes:'Training verwerfen',act:'discard',danger:true});
     const open=S.active.exercises.reduce((a,e)=>a+e.sets.filter(s=>!s.done).length,0);
-    openSheet({type:'confirm',title:'Training beenden?',text:open?`${open} ${open===1?'Satz ist':'Sätze sind'} nicht abgehakt und ${open===1?'wird':'werden'} nicht gespeichert.`:'Alle Sätze sind abgehakt.',yes:'Training speichern',act:'finish-ok'})},
+    openSheet({type:'confirm',title:'Training beenden?',text:open?`${open} ${open===1?'Satz ist':'Sätze sind'} nicht abgehakt und ${open===1?'wird':'werden'} nicht gespeichert.`:'Alle Sätze sind abgehakt.',yes:S.active.routineId&&S.routines.some(r=>r.id===S.active.routineId)?'Nur speichern (Routine bleibt wie sie war)':'Training speichern',act:'finish-ok',alt:S.active.routineId&&S.routines.some(r=>r.id===S.active.routineId)?{act:'finish-upd',label:'Speichern & Routine überarbeiten'}:null})},
   'finish-ok':()=>{closeSheet();finishWorkout()},
+  'finish-upd':()=>{closeSheet();finishWorkout(true);toast('Routine überarbeitet')},
   cancel:()=>openSheet({type:'confirm',title:'Training verwerfen?',text:'Alle Einträge dieses Trainings gehen verloren.',yes:'Verwerfen',act:'discard',danger:true}),
   discard:()=>{S.active=null;S.rest=null;stopRestAudio();saveActive(true);closeSheet();renderAll()},
   'rest-adj':(el)=>{if(!S.rest)return;S.rest.end+=(+el.dataset.v)*1000;S.rest.total=Math.max(S.rest.total+(+el.dataset.v),1);armRestAudio(Math.max(0,(S.rest.end-Date.now())/1000));tick()},
