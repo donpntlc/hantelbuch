@@ -478,14 +478,14 @@ function warCry(){const c=audioCtx,T=c.currentTime,out=c.createDynamicsCompresso
   const n=c.createBufferSource(),hg=c.createGain();n.buffer=nb;hg.gain.value=.12;n.connect(hg);hg.connect(mix);n.start(T+t);n.stop(T+t+d)};
  drum(0);shout(.12,.38,118);drum(.7);shout(.82,.38,118);drum(1.4);drum(1.62);shout(1.75,1.1,128)}
 function ringBell(at){const c=audioCtx,T=c.currentTime+at,out=c.createDynamicsCompressor();out.connect(c.destination);
- [[1,1],[2.76,.55],[5.4,.32],[8.93,.18],[13.3,.08]].forEach(([r,a])=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=720*r;g.gain.setValueAtTime(.0001,T);g.gain.exponentialRampToValueAtTime(.5*a,T+.004);g.gain.exponentialRampToValueAtTime(.0001,T+1.6/Math.sqrt(r));o.connect(g);g.connect(out);o.start(T);o.stop(T+1.7)})}
-function boxBell(at){[0,.32,.64].forEach(d=>ringBell(at+d))}
+ [[1,1],[2.76,.55],[5.4,.32],[8.93,.18],[13.3,.08]].forEach(([r,a])=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=880*r;g.gain.setValueAtTime(.0001,T);g.gain.exponentialRampToValueAtTime(.5*a,T+.003);g.gain.exponentialRampToValueAtTime(.0001,T+.75/Math.sqrt(r));o.connect(g);g.connect(out);o.start(T);o.stop(T+.8)})}
+function boxBell(at){[0,.17,.34].forEach(d=>ringBell(at+d))}
 function beep(){try{if(rawEl&&!customBuf){playRaw();return}if(!audioCtx)return;if(customBuf){playCustom();boxBell(customBuf.duration+.05)}else boxBell(0)}catch(e){}try{navigator.vibrate&&navigator.vibrate([200,100,200,100,600])}catch(e){}}
 let restAudio=null,restUrl=null;
-function bellWav(secs){const sr=16000,tail=2.4,n=Math.floor((secs+tail)*sr),buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
+function bellWav(secs){const sr=16000,tail=1.3,n=Math.floor((secs+tail)*sr),buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
  const w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))};w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
- const P=[[1,1],[2.76,.55],[5.4,.32],[8.93,.18]],start=Math.floor(secs*sr);
- for(const d of [0,.32,.64]){const s0=start+Math.floor(d*sr);for(let k=0;k<Math.floor(1.7*sr)&&s0+k<n;k++){const t=k/sr;let x=0;for(const[r,a]of P)x+=a*Math.sin(2*Math.PI*720*r*t)*Math.exp(-t*3/(1.6/Math.sqrt(r)));const o=44+(s0+k)*2;const prev=v.getInt16(o,true)/32767;v.setInt16(o,Math.max(-1,Math.min(1,prev+x*.32))*32767,true)}}
+ const P=[[1,1],[2.76,.55],[5.4,.32]],start=Math.floor(secs*sr);
+ for(const d of [0,.17,.34]){const s0=start+Math.floor(d*sr);for(let k=0;k<Math.floor(.8*sr)&&s0+k<n;k++){const t=k/sr;let x=0;for(const[r,a]of P)x+=a*Math.sin(2*Math.PI*880*r*t)*Math.exp(-t*3/(.75/Math.sqrt(r)));const o=44+(s0+k)*2;const prev=v.getInt16(o,true)/32767;v.setInt16(o,Math.max(-1,Math.min(1,prev+x*.32))*32767,true)}}
  return new Blob([buf],{type:'audio/wav'})}
 function stopRestAudio(){if(restAudio){try{restAudio.pause()}catch(e){}restAudio=null}if(restUrl){URL.revokeObjectURL(restUrl);restUrl=null}}
 function armRestAudio(sec){stopRestAudio();if(sec<=0)return;try{restUrl=URL.createObjectURL(bellWav(sec));restAudio=new Audio(restUrl);restAudio.setAttribute('playsinline','');const p=restAudio.play();if(p&&p.catch)p.catch(()=>{restAudio=null})}catch(e){restAudio=null}}
