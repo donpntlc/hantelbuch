@@ -420,7 +420,7 @@ function sMenu({i}){
   <button class="li" data-act="del-set" data-i="${i}">Letzten Satz entfernen</button>
   <button class="li" data-act="ex-del" data-i="${i}" style="color:var(--bad)">Übung entfernen</button></div>`;
 }
-function sRestDefault(){return `<h2>Standard-Pause</h2><div class="row">${[45,60,90,120,150,180,240].map(s=>`<button class="chip ${S.restDefault===s?'on':''}" data-act="rest-set" data-v="${s}">${mmss(s)}</button>`).join('')}</div><button class="btn ghost full" style="margin-top:14px" data-act="sound-test">Sound testen</button><button class="btn ghost full" style="margin-top:8px" data-act="sound-pick">${(S.soundId||customBuf||rawEl)?'Anderen Sound wählen':'Eigenen Sound wählen'}</button>${(S.soundId||customBuf||rawEl)?'<button class="btn text full" style="margin-top:4px" data-act="sound-reset">Standard-Sound verwenden</button>':''}<div class="muted mini" style="margin-top:8px">Audio oder Video vom Handy wählen, der Ton wird übernommen.</div>`}
+function sRestDefault(){return `<h2>Standard-Pause</h2><div class="row">${[45,60,90,120,150,180,240].map(s=>`<button class="chip ${S.restDefault===s?'on':''}" data-act="rest-set" data-v="${s}">${mmss(s)}</button>`).join('')}</div><button class="btn ghost full" style="margin-top:14px" data-act="sound-test">Sound testen</button><button class="btn ghost full" style="margin-top:8px" data-act="lockbell">${lockBellOn()?'✓ Glocke bei gesperrtem Handy: AN':'Glocke bei gesperrtem Handy: AUS'}</button><div class="muted mini" style="margin-top:6px">AUS: Spotify läuft immer weiter, die Glocke kommt nur bei offener App. AN: Glocke auch bei gesperrtem Handy, pausiert aber deine Musik während der Pause.</div><button class="btn ghost full" style="margin-top:8px" data-act="sound-pick">${(S.soundId||customBuf||rawEl)?'Anderen Sound wählen':'Eigenen Sound wählen'}</button>${(S.soundId||customBuf||rawEl)?'<button class="btn text full" style="margin-top:4px" data-act="sound-reset">Standard-Sound verwenden</button>':''}<div class="muted mini" style="margin-top:8px">Audio oder Video vom Handy wählen, der Ton wird übernommen.</div>`}
 function sRoutine(){
   const r=S.edit;
   return `<div class="spread"><h2>${r.isNew?'Neue Routine':'Routine bearbeiten'}</h2><button class="btn text" data-act="close">Abbrechen</button></div>
@@ -482,13 +482,16 @@ function ringBell(at){const c=audioCtx,T=c.currentTime+at,out=c.createDynamicsCo
 function boxBell(at){[0,.17,.34].forEach(d=>ringBell(at+d))}
 function beep(){try{if(rawEl&&!customBuf){playRaw();return}if(!audioCtx)return;if(customBuf){playCustom();boxBell(customBuf.duration+.05)}else boxBell(0)}catch(e){}try{navigator.vibrate&&navigator.vibrate([200,100,200,100,600])}catch(e){}}
 let restAudio=null,restUrl=null;
+function lockBellOn(){try{return localStorage.getItem('hantelbuch.lockbell')==='1'}catch(e){return false}}
+function setSession(t){try{if(navigator.audioSession)navigator.audioSession.type=t}catch(e){}}
+setSession('ambient');
 function bellWav(secs){const sr=16000,tail=1.3,n=Math.floor((secs+tail)*sr),buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
  const w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))};w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
  const P=[[1,1],[2.76,.55],[5.4,.32]],start=Math.floor(secs*sr);
  for(const d of [0,.17,.34]){const s0=start+Math.floor(d*sr);for(let k=0;k<Math.floor(.8*sr)&&s0+k<n;k++){const t=k/sr;let x=0;for(const[r,a]of P)x+=a*Math.sin(2*Math.PI*880*r*t)*Math.exp(-t*3/(.75/Math.sqrt(r)));const o=44+(s0+k)*2;const prev=v.getInt16(o,true)/32767;v.setInt16(o,Math.max(-1,Math.min(1,prev+x*.32))*32767,true)}}
  return new Blob([buf],{type:'audio/wav'})}
-function stopRestAudio(){if(restAudio){try{restAudio.pause()}catch(e){}restAudio=null}if(restUrl){URL.revokeObjectURL(restUrl);restUrl=null}}
-function armRestAudio(sec){stopRestAudio();if(sec<=0)return;try{restUrl=URL.createObjectURL(bellWav(sec));restAudio=new Audio(restUrl);restAudio.setAttribute('playsinline','');const p=restAudio.play();if(p&&p.catch)p.catch(()=>{restAudio=null})}catch(e){restAudio=null}}
+function stopRestAudio(){if(restAudio){try{restAudio.pause()}catch(e){}restAudio=null;setSession('ambient')}if(restUrl){URL.revokeObjectURL(restUrl);restUrl=null}}
+function armRestAudio(sec){stopRestAudio();if(sec<=0||!lockBellOn())return;setSession('playback');try{restUrl=URL.createObjectURL(bellWav(sec));restAudio=new Audio(restUrl);restAudio.setAttribute('playsinline','');const p=restAudio.play();if(p&&p.catch)p.catch(()=>{restAudio=null})}catch(e){restAudio=null}}
 function startRest(sec){S.rest={end:Date.now()+sec*1000,total:sec};armRestAudio(sec);renderRest()}
 function renderRest(){
   const b=$('#restbar');if(!S.rest){b.hidden=true;return}
@@ -607,6 +610,7 @@ const ACT={
   'srest-add':(el)=>{const{i,j}=S.sheet;const e=S.active.exercises[i],st=e.sets[j];st.rest=Math.max(15,(st.rest||e.rest||S.restDefault)+(+el.dataset.v));saveActive();renderSheet();renderMain()},
   'srest-all':()=>{const{i,j}=S.sheet;const e=S.active.exercises[i],v=e.sets[j].rest||e.rest||S.restDefault;e.sets.forEach(x=>x.rest=v);e.rest=v;saveActive();closeSheet();renderMain();toast('Pause für alle Sätze übernommen')},
   'nt-clear':(el)=>{if(el.dataset.in==='ent'){S.active.exercises[+el.dataset.i].next='';saveActive();renderMain()}else{const w=S.workouts.find(x=>x.id===el.dataset.w);if(w){w.exercises[+el.dataset.k].next='';const c={...w};delete c._t;saveWorkout(c);renderSheet()}}},
+  'lockbell':()=>{try{localStorage.setItem('hantelbuch.lockbell',lockBellOn()?'0':'1')}catch(e){}renderSheet()},
   'sound-test':()=>{unlockAudio();setTimeout(beep,80)},
   'r-samples':()=>{const mk=(name,list)=>({id:uid(),name,exercises:list.map(([n,s,r])=>({name:n,sets:s,rest:r}))});
     S.routines.push(mk('Beispiel: Oberkörper',[['Bankdrücken (Langhantel)',4,150],['Langhantelrudern',4,120],['Schulterdrücken (Kurzhantel)',3,90],['Latzug',3,90],['Kurzhantelcurls',3,60],['Trizepsdrücken am Kabel',3,60]]),
