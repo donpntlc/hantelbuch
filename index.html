@@ -1001,7 +1001,7 @@ async function backupIn(d){if(!d||!Array.isArray(d.workouts)||!Array.isArray(d.r
 $('#bkIn').addEventListener('change',async e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;try{await backupIn(JSON.parse(await f.text()))}catch(err){toast('Das ist keine REPIT-Backup-Datei.')}});
 /* ---------- Abo-Stufen (vorbereitet, PAYWALL=false = alles frei) ---------- */
 const PAYWALL=false;
-const TIERS={free:{n:'Kostenlos',r:0,p:'0'},pro:{n:'REPIT Pro',r:1,p:'15 / Jahr'},coach:{n:'REPIT Coach',r:2,p:'80 / Jahr'}};
+const TIERS={free:{n:'Kostenlos',r:0,p:'0'},pro:{n:'REPIT Pro',r:1,p:'20 / Jahr'},coach:{n:'REPIT Coach',r:2,p:'80 / Jahr'}};
 const FREE_MAX=2;
 function tier(){if(!PAYWALL)return 'coach';let t='free';try{t=localStorage.getItem('hantelbuch.tier')||'free'}catch(e){}return TIERS[t]?t:'free'}
 function ownCount(){return S.routines.filter(r=>r.folder!=='coach').length}
@@ -1011,7 +1011,7 @@ function sPay(){const cur=tier(),nd=S.payNeed||'pro';const row=(k,feat)=>`<div c
  return `<div class="spread"><h2>REPIT Abo</h2><button class="btn text sm" data-act="close">Schliessen</button></div>
  ${S.payWhy?`<p class="mini" style="margin:6px 0 12px">${esc(S.payWhy)}</p>`:''}
  ${row('free',[FREE_MAX+' eigene Trainingstage, jeden Tag trainierbar','Verlauf, Rekorde, Körper','Einzelne Tage teilen'])}
- ${row('pro',['Unbegrenzt Trainingstage','6er-Split-Vorlage','Alles aus Kostenlos','oder CHF/€ 4 pro Monat'])}
+ ${row('pro',['Unbegrenzt Trainingstage','6er-Split-Vorlage','Alles aus Kostenlos','oder CHF/€ 3 pro Monat (36 im Jahr)'])}
  ${row('coach',['Alles aus Pro','Bereich für Kunden-Pläne','Ganze Splits teilen (Datei oder Link)','Gewichts-Rechner für Kunden'])}
  <button class="btn gold full" disabled style="opacity:.6">Kaufen – bald verfügbar</button>`}
 (function(){const wrap=(k,g)=>{const o=ACT[k];if(o)ACT[k]=(el)=>{if(g(el))return o(el)}};
