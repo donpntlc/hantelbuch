@@ -393,7 +393,7 @@ function sRDay({rid}){const r=S.routines.find(x=>x.id===rid);return `<div class=
  <button class="btn ghost full" data-act="r-day-set" data-v="">Kein fester Tag</button>`}
 
 function vHistory(){
-  if(!S.workouts.length)return `<h2>Verlauf</h2><div class="empty"><strong>Noch keine Trainings</strong>Beendete Trainings landen hier, mit Volumen, Dauer und Rekorden.<div style="margin-top:12px"><button class="btn ghost sm" data-act="import">Daten aus Strong importieren</button></div></div>`;
+  if(!S.workouts.length)return `<h2>Verlauf</h2><div class="empty"><strong>Noch keine Trainings</strong>Beendete Trainings landen hier, mit Volumen, Dauer und Rekorden.<div style="margin-top:12px"><button class="btn ghost sm" data-act="import">Daten importieren</button></div></div>`;
   let out='<div class="spread"><h2>Verlauf</h2><button class="btn text sm" data-act="data-menu">Daten</button></div>',cur='';
   for(const w of S.workouts){
     const mo=new Date(w.start).toLocaleDateString('de-CH',{month:'long',year:'numeric'});
