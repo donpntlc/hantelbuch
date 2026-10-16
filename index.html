@@ -70,6 +70,9 @@ h3{font-family:var(--f-display);font-weight:600;font-size:19px;letter-spacing:.0
 .wk-name:focus{outline:none;border-color:var(--gold)}
 .timer{font-family:var(--f-display);font-size:20px;color:var(--gold)}
 .ex{padding:12px 12px 8px}
+.exthumb{width:64px;height:43px;border-radius:8px;object-fit:cover;flex:none;background:#000;border:1px solid var(--line)}
+.lithumb{width:54px;height:36px;border-radius:6px;object-fit:cover;flex:none;background:#000;margin-right:10px;border:1px solid var(--line)}
+.exhero{width:100%;border-radius:12px;display:block;margin:10px 0 6px;background:#000;border:1px solid var(--line)}
 .ex-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .ex-head h3{color:var(--gold-hi);min-width:0;overflow-wrap:anywhere;cursor:pointer}
 .sets{width:100%;border-collapse:collapse}
@@ -326,7 +329,7 @@ function exCard(e,i){
     <td style="white-space:nowrap"><button class="sdel" data-act="set-del" data-i="${i}" data-j="${j}">Löschen</button><button class="check ${e.uni&&s.half&&!s.done?'half':''}" data-act="done" data-i="${i}" data-j="${j}" aria-label="Satz abhaken">${e.uni&&s.half&&!s.done?'L ✓':''}<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></button></td></tr>
     <tr class="restrow"><td colspan="5"><button class="setrest" data-act="srest" data-i="${i}" data-j="${j}" aria-label="Pause nach diesem Satz ändern"><span></span>${mmss(s.rest||e.rest||S.restDefault)}<span></span></button></td></tr>`}).join('');
   const lt=lastEx(e.name);
-  return `<div class="card ex"><div class="ex-head"><div style="min-width:0"><h3 data-act="ex-open" data-v="${esc(e.name)}">${esc(e.name)}</h3><div class="muted mini">${lt?'Zuletzt '+ago(lt):'Erstes Mal'}${e.uni?` · <span style="color:var(--gold)">einseitig, Wechsel ${mmss(e.uniRest||15)}</span>`:''}</div>${cardio?'':targetBox(`data-in="ent" data-i="${i}"`,e.target)}</div>
+  return `<div class="card ex"><div class="ex-head"><div class="row" style="flex-wrap:nowrap;gap:10px;min-width:0;align-items:flex-start">${imgTag(e.name,'exthumb',`data-act="ex-open" data-v="${esc(e.name)}"`)}<div style="min-width:0"><h3 data-act="ex-open" data-v="${esc(e.name)}">${esc(e.name)}</h3><div class="muted mini">${lt?'Zuletzt '+ago(lt):'Erstes Mal'}${e.uni?` · <span style="color:var(--gold)">einseitig, Wechsel ${mmss(e.uniRest||15)}</span>`:''}</div>${cardio?'':targetBox(`data-in="ent" data-i="${i}"`,e.target)}</div></div>
   <div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn text sm" data-act="ex-menu" data-i="${i}" aria-label="Optionen">•••</button></div></div>
   ${noteBox(`data-in="ent" data-i="${i}"`,e.note,e.next,e.nextDate)}
   <table class="sets" style="margin-top:8px"><thead><tr><th>Satz</th><th>Vorher</th><th>${cardio?'':'kg'}</th><th>${cardio?'Min':'Wdh.'}</th><th></th></tr></thead><tbody>${rows}</tbody></table>
@@ -358,7 +361,7 @@ function exList(){
   const qq=S.exq.toLowerCase();
   const names=allNames().filter(n=>n.toLowerCase().includes(qq));
   const withData=names.map(n=>({n,s:sessions(n)})).sort((a,b)=>(b.s.length-a.s.length)||a.n.localeCompare(b.n,'de'));
-  return withData.map(({n,s})=>{const b=s.length?bests(n):null;return `<button class="li" data-act="ex-open" data-v="${esc(n)}"><span><span class="name">${esc(n)}</span><br><span class="muted mini">${catOf(n)}${s.length?' · zuletzt '+ago(s[0].w.start):''}</span></span><span class="num" style="color:var(--gold)">${b&&b.e1?fmt(b.e1)+' kg':''}</span></button>`}).join('')||'<div class="empty">Keine Übung gefunden.</div>';
+  return withData.map(({n,s})=>{const b=s.length?bests(n):null;return `<button class="li" data-act="ex-open" data-v="${esc(n)}"><span class="row" style="flex-wrap:nowrap;gap:0;min-width:0">${imgTag(n,'lithumb')}<span style="min-width:0;text-align:left"><span class="name">${esc(n)}</span><br><span class="muted mini">${catOf(n)}${s.length?' · zuletzt '+ago(s[0].w.start):''}</span></span></span><span class="num" style="color:var(--gold)">${b&&b.e1?fmt(b.e1)+' kg':''}</span></button>`}).join('')||'<div class="empty">Keine Übung gefunden.</div>';
 }
 
 function vBody(){
@@ -465,6 +468,7 @@ function sEx({name}){
   const ss=sessions(name),b=bests(name);
   const pts=ss.slice(0,30).reverse().map(({w,e})=>{const bs=bestSet(e);return {x:dayKey(w.start),y:bs?e1rm(num(bs.kg),num(bs.reps)):0}}).filter(p=>p.y>0);
   return `<div class="eyebrow">${catOf(name)}${ss.length?' · zuletzt '+ago(ss[0].w.start):''}</div><h2 style="margin-top:2px">${esc(name)}</h2>
+  ${imgTag(name,'exhero')}<div class="row" style="gap:6px;margin-bottom:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Bild Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Bild Frau</button></div>
   ${ss.length?`<div class="stats"><div class="stat"><div class="v num">${fmt(b.e1)}</div><div class="k">Bestes 1RM geschätzt (kg)</div></div><div class="stat"><div class="v num">${fmt(b.kg)}</div><div class="k">Schwerstes Gewicht (kg)</div></div><div class="stat"><div class="v num">${fmt(b.vol)}</div><div class="k">Bester Satz, kg × Wdh.</div></div><div class="stat"><div class="v num">${b.reps}</div><div class="k">Meiste Wdh.</div></div></div>
   ${pts.length>1?`<div class="eyebrow" style="margin:14px 0 6px">Geschätztes 1RM pro Training</div>${chart(pts,'kg')}`:''}
   ${(()=>{const nh=noteHist(name);return nh.length?`<div class="eyebrow" style="margin:14px 0 6px">Notiz-Verlauf</div><div class="notehist">${nh.slice(0,30).map(({w,items})=>`<div class="nh"><div class="mini" style="font-weight:800">${fDate(w.start)}</div>${items.map(([k,v])=>`<div class="mini" style="margin-top:4px"><span class="muted">${esc(k)}:</span> <span style="white-space:pre-line">${esc(v)}</span></div>`).join('')}</div>`).join('')}</div>`:''})()}
@@ -583,6 +587,10 @@ function sOrder(){const x=S.active.exercises;return `<div class="spread"><h2>Rei
 function noteHist(name){const out=[];let lastNote=null;const ss=sessions(name).slice().reverse();
  for(const {w,e} of ss){const items=[];if(e.note&&e.note!==lastNote)items.push(['Notiz',e.note]);lastNote=e.note||lastNote;if(e.next)items.push(['Fürs nächste Mal'+(e.nextDate?' ('+fShort(e.nextDate)+')':''),e.next]);if(e.target)items.push(['Ziel','x'+String(e.target).replace(/^x/i,'')]);if(items.length)out.push({w,items})}
  return out.reverse()}
+function slug(n){return String(n).toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
+function gender(){try{return localStorage.getItem('hantelbuch.gender')||'m'}catch(e){return 'm'}}
+function exImg(n,g){return 'img/'+slug(n)+'-'+(g||gender())+'.jpg'}
+function imgTag(n,cls,attrs){return `<img class="${cls}" src="${exImg(n)}" alt="" loading="lazy" onerror="this.remove()" ${attrs||''}>`}
 const RPE=['','6','6.5','7','7.5','8','8.5','9','9.5','10'];
 function blankSets(n){return Array.from({length:n},()=>({kg:'',reps:'',done:false,type:'n'}))}
 function startWorkout(name,exs,rid){S.active={id:uid(),name,start:Date.now(),routineId:rid||null,exercises:exs};S.tab='training';saveActive(true);renderAll();window.scrollTo(0,0)}
@@ -668,6 +676,7 @@ const ACT={
   'ord-mv':(el)=>{const i=+el.dataset.i,k=i+(+el.dataset.v),x=S.active.exercises;if(k<0||k>=x.length)return;[x[i],x[k]]=[x[k],x[i]];saveActive();renderSheet();renderMain()},
   'ex-uni':(el)=>{const e=S.active.exercises[+el.dataset.i];e.uni=!e.uni;if(!e.uniRest)e.uniRest=15;saveActive();renderSheet();renderMain()},
   'ex-unirest':(el)=>{S.active.exercises[+el.dataset.i].uniRest=+el.dataset.v;saveActive();renderSheet();renderMain()},
+  'gender':(el)=>{try{localStorage.setItem('hantelbuch.gender',el.dataset.v)}catch(e){}renderSheet();renderMain()},
   'sound-test':()=>{unlockAudio();setTimeout(beep,80)},
   'r-samples':()=>{const mk=(name,list)=>({id:uid(),name,exercises:list.map(([n,s,r])=>({name:n,sets:s,rest:r}))});
     S.routines.push(mk('Beispiel: Oberkörper',[['Bankdrücken (Langhantel)',4,150],['Langhantelrudern',4,120],['Schulterdrücken (Kurzhantel)',3,90],['Latzug',3,90],['Kurzhantelcurls',3,60],['Trizepsdrücken am Kabel',3,60]]),
