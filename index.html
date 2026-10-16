@@ -495,7 +495,7 @@ function sData(){
   return `<h2>Daten</h2><div class="stack">
   <button class="btn ghost full" data-act="import">Aus Strong importieren (CSV)</button>
   ${downloads?'<button class="btn ghost full" data-act="export">Backup herunterladen</button>':''}
-  <p class="muted mini">In Strong: Profil → Einstellungen → Daten exportieren. Die CSV-Datei hier auswählen. Doppelte Trainings werden überschrieben, nicht doppelt angelegt.</p></div>`;
+  <p class="muted mini">Version 16.10. 22:15</p><p class="muted mini">In Strong: Profil → Einstellungen → Daten exportieren. Die CSV-Datei hier auswählen. Doppelte Trainings werden überschrieben, nicht doppelt angelegt.</p></div>`;
 }
 
 /* ---------- Rest timer ---------- */
@@ -785,7 +785,7 @@ $('#photoIn').addEventListener('change',async e=>{
 function parseCSV(t){const first=t.split('\n')[0];const d=first.split(';').length>first.split(',').length?';':',';const rows=[];let row=[],f='',qt=false;for(let i=0;i<t.length;i++){const c=t[i];if(qt){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else qt=false}else f+=c}else if(c==='"')qt=true;else if(c===d){row.push(f);f=''}else if(c==='\n'){row.push(f);rows.push(row);row=[];f=''}else if(c!=='\r')f+=c}if(f||row.length){row.push(f);rows.push(row)}return rows}
 function hash(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return (h>>>0).toString(36)}
 function parseDur(s){s=String(s||'');const h=+(s.match(/(\d+)\s*h/)||[0,0])[1],m=+(s.match(/(\d+)\s*m/)||[0,0])[1],sec=+(s.match(/(\d+)\s*s\b/)||[0,0])[1];const ms=((h*60+m)*60+sec)*1000;return ms>0?ms:3600000}
-function parseSD(s){s=String(s||'').replace(/[  ]/g,' ').trim();const m=s.match(/(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);if(!m){const t=new Date(s.replace(' ','T')).getTime();return isFinite(t)?t:NaN}
+function parseSD(s){s=String(s||'').replace(/[  ]/g,' ').trim();const m=s.match(/(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);if(!m){const g=s.match(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4}),?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);if(g){let H=+g[4];if(g[7]){const pm=/pm/i.test(g[7]);if(pm&&H<12)H+=12;if(!pm&&H===12)H=0}const y=+g[3]<100?2000+(+g[3]):+g[3];return new Date(y,+g[2]-1,+g[1],H,+g[5],+(g[6]||0)).getTime()}const t=new Date(s.replace(' ','T')).getTime();return isFinite(t)?t:NaN}
  let H=+m[4];if(m[7]){const pm=/pm/i.test(m[7]);if(pm&&H<12)H+=12;if(!pm&&H===12)H=0}return new Date(+m[1],+m[2]-1,+m[3],H,+m[5],+(m[6]||0)).getTime()}
 function unesc(t){return String(t).replace(/\\n/g,'\n').replace(/\\t/g,' ').trim()}
 const STRONG_CUTOFF=new Date(2026,9,1).getTime(); /* Oktober 2026 = anderes Studio, nicht importieren */
@@ -830,7 +830,7 @@ function routinesFromImport(ws){
   saveMeta();return n}
 $('#csvIn').addEventListener('change',async e=>{
   const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;closeSheet();
-  try{const ws=importStrong(parseCSV(await f.text()));if(!ws.length)return toast('Keine Trainings in der Datei gefunden.');
+  try{const ws=importStrong(parseCSV(await f.text()));if(!ws.length){const rows=parseCSV(await f.text());return toast('Keine Trainings gefunden. Spalten: '+(rows[0]||[]).slice(0,4).join(', ')+' · Datum: '+((rows[1]||[])[0]||'–'))}
     toast(`${ws.length} Trainings werden importiert …`);
     const ids=new Set(ws.map(w=>w.id));const drop=S.workouts.filter(w=>w.imported&&w.start>=STRONG_CUTOFF);S.workouts=[...ws,...S.workouts.filter(w=>!ids.has(w.id)&&!(w.imported&&w.start>=STRONG_CUTOFF))].sort((a,b)=>b.start-a.start);if(refs)for(const w of drop){try{refs.workouts.doc(w.id).delete()}catch(e){}}renderMain();
     const nr=routinesFromImport(ws);
