@@ -72,7 +72,7 @@ h3{font-family:var(--f-display);font-weight:600;font-size:19px;letter-spacing:.0
 .ex{padding:12px 12px 8px}
 .exthumb{width:64px;height:43px;border-radius:8px;object-fit:cover;flex:none;background:#000;border:1px solid var(--line)}
 .lithumb{width:54px;height:36px;border-radius:6px;object-fit:cover;flex:none;background:#000;margin-right:10px;border:1px solid var(--line)}
-.exhero{width:100%;border-radius:12px;display:block;margin:10px 0 6px;background:#000;border:1px solid var(--line)}
+.exhero{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:12px;display:block;margin:10px 0 6px;background:#000;border:1px solid var(--line)}
 .ex-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .ex-head h3{color:var(--gold-hi);min-width:0;overflow-wrap:anywhere;cursor:pointer}
 .sets{width:100%;border-collapse:collapse}
@@ -118,6 +118,11 @@ tr.swiped td{background:rgba(220,80,80,.08)}
 .geargrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .geargrid label{display:flex;flex-direction:column;gap:4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .restbar .in{gap:6px}.restbar .btn.sm{padding:0 9px}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rcard{display:flex;flex-direction:column;gap:6px;padding:12px;min-width:0}
+.rcard h3{font-size:16px;line-height:1.2;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;margin:0}
+.rcard .rfoot{margin-top:auto;display:flex;gap:6px;align-items:center}
+.rcard .rfoot .btn.gold{flex:1;padding:0 8px}
 .orderli{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
 .notehist .nh{padding:10px 0;border-bottom:1px solid var(--line)}
 .check{width:38px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);display:grid;place-items:center}
@@ -282,7 +287,9 @@ uebungen:'<path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/>',
 koerper:'<circle cx="12" cy="5" r="2.2"/><path d="M12 8v6M8 10h8M12 14l-3 6M12 14l3 6"/>'};
 const TABS=[['training','Training'],['routinen','Routinen'],['verlauf','Verlauf'],['uebungen','Übungen'],['koerper','Körper']];
 function renderNav(){$('#nav').innerHTML=TABS.map(([k,l])=>`<button data-act="tab" data-v="${k}" class="${S.tab===k?'on':''}" aria-label="${l}"><svg viewBox="0 0 24 24">${ICONS[k]}</svg>${l}</button>`).join('')}
-function renderAll(){renderNav();renderMain();renderSheet();renderRest()}
+function genderSet(){try{return !!localStorage.getItem('hantelbuch.gender')}catch(e){return true}}
+function renderAll(){if(!S.sheet&&!genderSet())S.sheet={type:'gender'};renderNav();renderMain();renderSheet();renderRest()}
+function sGender(){return `<h2>Willkommen</h2><p class="muted" style="margin:4px 0 14px">Wer trainiert? Danach zeigen dir die Übungsbilder einen Mann oder eine Frau. Ändern kannst du das jederzeit unter Verlauf → Daten.</p><div class="stack"><button class="btn gold full" data-act="gender" data-v="m">Mann</button><button class="btn gold full" data-act="gender" data-v="w">Frau</button></div>`}
 function renderMain(){
   if(!S.ready)return;
   const m=$('#main');
@@ -291,7 +298,8 @@ function renderMain(){
   if(S.tab==='training'&&S.active)tick();
 }
 
-function routineCard(r){const lt=lastRoutine(r);return `<div class="card"><div class="spread"><h3>${esc(r.name)}</h3><button class="btn text sm" data-act="r-edit" data-v="${r.id}">Bearbeiten</button></div>
+function routineCard(r){const lt=lastRoutine(r);return `<div class="card rcard"><h3>${esc(r.name)}</h3><div class="mini" style="color:${lt?'var(--gold)':'var(--muted)'}">${lt?'Zuletzt '+ago(lt):'Noch nie gemacht'}</div><div class="muted mini">${r.exercises.length} Übungen</div><div class="rfoot"><button class="btn gold sm" data-act="start-r" data-v="${r.id}">Start</button><button class="btn ghost sm" data-act="r-edit" data-v="${r.id}" aria-label="Routine bearbeiten">✎</button></div></div>`}
+function routineCardOld(r){const lt=lastRoutine(r);return `<div class="card"><div class="spread"><h3>${esc(r.name)}</h3><button class="btn text sm" data-act="r-edit" data-v="${r.id}">Bearbeiten</button></div>
 <div class="mini" style="margin-top:2px;color:${lt?'var(--gold)':'var(--muted)'}">${lt?'Zuletzt '+ago(lt)+' · '+fDate(lt):'Noch nie gemacht'}</div>
 <div class="muted mini" style="margin:6px 0 12px">${r.exercises.map(e=>`${e.sets} × ${esc(e.name)}${(e.target||TARGETS[e.name])?` <span style="color:var(--gold)">x${esc(String(e.target||TARGETS[e.name]).replace(/^x/i,''))}</span>`:''}`).join(' · ')||'Noch keine Übungen'}</div>
 <button class="btn gold full" data-act="start-r" data-v="${r.id}">Routine starten</button></div>`}
@@ -303,8 +311,8 @@ function vTraining(){
   return `<div class="card hero stack"><div class="eyebrow">Diese Woche</div><div class="big num">${wk} ${wk===1?'Training':'Trainings'}</div>
   ${last?`<div class="muted mini">Zuletzt: ${esc(last.name)}, ${fDate(last.start)} · ${fmt(wVolume(last))} kg Volumen</div>`:'<div class="muted mini">Starte dein erstes Training. Jeder Satz wird gespeichert.</div>'}
   <button class="btn gold full" data-act="start-empty">Leeres Training starten</button></div>
-  <h2>Routinen</h2>
-  ${S.routines.length?`<div class="stack">${S.routines.map(routineCard).join('')}</div>`:emptyRoutines()}
+  <div class="spread"><h2>Routinen</h2>${S.routines.length>1?'<button class="btn text sm" data-act="ro-open">Reihenfolge</button>':''}</div>
+  ${S.routines.length?`<div class="rgrid">${S.routines.map(routineCard).join('')}</div>`:emptyRoutines()}
   <div class="sep"></div>
   <div class="spread mini"><span class="muted">Standard-Pause</span><button class="chip on" data-act="rest-default">${mmss(S.restDefault)} ändern</button></div>`;
 }
@@ -343,8 +351,8 @@ function exCard(e,i){
 }
 
 function vRoutines(){
-  return `<div class="spread"><h2>Routinen</h2><button class="btn gold sm" data-act="r-new">Neue Routine</button></div>
-  ${S.routines.length?`<div class="stack">${S.routines.map(routineCard).join('')}</div>`:emptyRoutines()}`;
+  return `<div class="spread"><h2>Routinen</h2><span class="row" style="gap:6px;flex-wrap:nowrap">${S.routines.length>1?'<button class="btn text sm" data-act="ro-open">Reihenfolge</button>':''}<button class="btn gold sm" data-act="r-new">Neue Routine</button></span></div>
+  ${S.routines.length?`<div class="rgrid">${S.routines.map(routineCard).join('')}</div>`:emptyRoutines()}`;
 }
 
 function vHistory(){
@@ -421,7 +429,7 @@ function renderSheet(){
   const sh=$('#sheet'),bd=$('#backdrop');
   if(!S.sheet){sh.hidden=true;bd.hidden=true;sh.innerHTML='';return}
   sh.hidden=false;bd.hidden=false;
-  const f=({picker:sPicker,menu:sMenu,routine:sRoutine,hist:sHist,ex:sEx,confirm:sConfirm,summary:sSummary,rest:sRestDefault,data:sData,setrest:sSetRest,rpe:sRpe,order:sOrder,gear:sGear})[S.sheet.type];
+  const f=({picker:sPicker,menu:sMenu,routine:sRoutine,hist:sHist,ex:sEx,confirm:sConfirm,summary:sSummary,rest:sRestDefault,data:sData,setrest:sSetRest,rpe:sRpe,order:sOrder,rorder:sROrder,gender:sGender,gear:sGear})[S.sheet.type];
   sh.innerHTML=`<div class="in"><div class="grab"></div>${f(S.sheet)}</div>`;growAll(sh);
 }
 function sPicker(){
@@ -475,7 +483,7 @@ function sEx({name}){
   const ss=sessions(name),b=bests(name);
   const pts=ss.slice(0,30).reverse().map(({w,e})=>{const bs=bestSet(e);return {x:dayKey(w.start),y:bs?e1rm(num(bs.kg),num(bs.reps)):0}}).filter(p=>p.y>0);
   return `<div class="eyebrow">${catOf(name)}${ss.length?' · zuletzt '+ago(ss[0].w.start):''}</div><h2 style="margin-top:2px">${esc(name)}</h2>
-  ${imgTag(name,'exhero')}<div class="row" style="gap:6px;margin-bottom:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Bild Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Bild Frau</button></div><div style="margin:-2px 0 8px -6px">${gearBtn(name)}</div>
+  ${imgTag(name,'exhero')}<div style="margin:-2px 0 8px -6px">${gearBtn(name)}</div>
   ${ss.length?`<div class="stats"><div class="stat"><div class="v num">${fmt(b.e1)}</div><div class="k">Bestes 1RM geschätzt (kg)</div></div><div class="stat"><div class="v num">${fmt(b.kg)}</div><div class="k">Schwerstes Gewicht (kg)</div></div><div class="stat"><div class="v num">${fmt(b.vol)}</div><div class="k">Bester Satz, kg × Wdh.</div></div><div class="stat"><div class="v num">${b.reps}</div><div class="k">Meiste Wdh.</div></div></div>
   ${pts.length>1?`<div class="eyebrow" style="margin:14px 0 6px">Geschätztes 1RM pro Training</div>${chart(pts,'kg')}`:''}
   ${(()=>{const nh=noteHist(name);return nh.length?`<div class="eyebrow" style="margin:14px 0 6px">Notiz-Verlauf</div><div class="notehist">${nh.slice(0,30).map(({w,items})=>`<div class="nh"><div class="mini" style="font-weight:800">${fDate(w.start)}</div>${items.map(([k,v])=>`<div class="mini" style="margin-top:4px"><span class="muted">${esc(k)}:</span> <span style="white-space:pre-line">${esc(v)}</span></div>`).join('')}</div>`).join('')}</div>`:''})()}
@@ -495,7 +503,7 @@ function sData(){
   return `<h2>Daten</h2><div class="stack">
   <button class="btn ghost full" data-act="import">Aus Strong importieren (CSV)</button>
   ${downloads?'<button class="btn ghost full" data-act="export">Backup herunterladen</button>':''}
-  <p class="muted mini">Version 16.10. 22:15</p><p class="muted mini">In Strong: Profil → Einstellungen → Daten exportieren. Die CSV-Datei hier auswählen. Doppelte Trainings werden überschrieben, nicht doppelt angelegt.</p></div>`;
+  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><p class="muted mini">Version 16.10. 22:45</p><p class="muted mini">In Strong: Profil → Einstellungen → Daten exportieren. Die CSV-Datei hier auswählen. Doppelte Trainings werden überschrieben, nicht doppelt angelegt.</p></div>`;
 }
 
 /* ---------- Rest timer ---------- */
@@ -599,6 +607,8 @@ function sRpe({i,j}){const st=S.active.exercises[i].sets[j],cur=String(st.rpe||'
  return `<div class="spread"><h2>RPE</h2><button class="btn text sm" data-act="rpe-clear">Entfernen</button></div><div class="muted mini">Wie schwer war der Satz?</div>
  <div class="rpetxt" id="rpetxt">${cur?esc(RPE_TXT[cur]||''):'Wähle eine Zahl von 6 bis 10.'}</div>
  <div class="rpegrid">${RPE.filter(Boolean).map(v=>`<button class="${cur===v?'on':''}" data-act="rpe-set" data-v="${v}">${v.replace('.',',')}</button>`).join('')}</div>`}
+function sROrder(){const x=S.routines;return `<div class="spread"><h2>Reihenfolge</h2><button class="btn gold sm" data-act="close">Fertig</button></div><div class="muted mini" style="margin-bottom:8px">Bestimmt, welche Routine an Platz 1, 2, 3 … steht.</div>
+ <div>${x.map((r,i)=>`<div class="orderli"><span class="name" style="min-width:0;overflow-wrap:anywhere">${i+1}. ${esc(r.name)}</span><span class="row" style="flex-wrap:nowrap;gap:4px"><button class="btn ghost sm" data-act="ro-mv" data-i="${i}" data-v="-1" aria-label="Nach oben" ${i===0?'disabled':''}>↑</button><button class="btn ghost sm" data-act="ro-mv" data-i="${i}" data-v="1" aria-label="Nach unten" ${i===x.length-1?'disabled':''}>↓</button></span></div>`).join('')}</div>`}
 function sOrder(){const x=S.active.exercises;return `<div class="spread"><h2>Reihenfolge</h2><button class="btn gold sm" data-act="close">Fertig</button></div>
  <div>${x.map((e,i)=>`<div class="orderli"><span class="name" style="min-width:0">${i+1}. ${esc(e.name)}</span><span class="row" style="flex-wrap:nowrap;gap:4px"><button class="btn ghost sm" data-act="ord-mv" data-i="${i}" data-v="-1" aria-label="Nach oben" ${i===0?'disabled':''}>↑</button><button class="btn ghost sm" data-act="ord-mv" data-i="${i}" data-v="1" aria-label="Nach unten" ${i===x.length-1?'disabled':''}>↓</button></span></div>`).join('')}</div>`}
 function noteHist(name){const out=[];let lastNote=null;const ss=sessions(name).slice().reverse();
@@ -608,7 +618,7 @@ function slug(n){return String(n).toLowerCase().replace(/ä/g,'ae').replace(/ö/
 function gender(){try{return localStorage.getItem('hantelbuch.gender')||'m'}catch(e){return 'm'}}
 const IMG_ALIAS={"Push Up": "Liegestütze", "Pull Up": "Klimmzüge", "Pull Up (Warm Up)": "Klimmzüge", "1. Pull up +kg": "Klimmzüge", "2. Pull up +kg": "Klimmzüge", "Chest Dip": "Dips", "1. Chest Dip +kg": "Dips", "2. Chest Dip +kg": "Dips", "Triceps Dip (Assisted)": "Dips", "Bicep Curl (Dumbbell)": "Kurzhantelcurls", "Bicep Curl (Cable)": "Kabelcurls", "Bicep Curl (Barbell)": "Langhantelcurls", "Lat Pulldown (Cable)": "Latzug", "Seated Wide-Grip Row (Cable)": "Kabelrudern sitzend", "Seated Close-Grip Row (Cable)": "Kabelrudern sitzend", "Low Row": "Kabelrudern sitzend", "Seated Row (Machine)": "Kabelrudern sitzend", "Incline Bench Press (Smith Machine)": "Schrägbankdrücken (Langhantel)", "Squat (Barbell)": "Kniebeuge", "Front Raise (Dumbbell)": "Frontheben", "Lateral Raise (Dumbbell)": "Seitheben", "Lateral Raise (Cable)": "Seitheben am Kabel", "Triceps Pushdown (Cable - Straight Bar)": "Trizepsdrücken am Kabel", "Triceps push down mashine": "Trizepsdrücken am Kabel", "Triceps Extension (Cable)": "Überkopf-Trizeps (Kabel)", "Stiff Leg Deadlift (Dumbbell)": "Rumänisches Kreuzheben", "Reverse Fly (Machine)": "Reverse Butterfly", "Reverse Fly (Cable)": "Reverse Butterfly", "Shoulder Press Dumbbell": "Schulterdrücken (Kurzhantel)", "Leg Extension (Machine)": "Beinstrecker", "Hack Squat": "Hackenschmidt", "Seated Leg Curl (Machine)": "Beinbeuger sitzend", "Lying Leg Curl (Machine)": "Beinbeuger liegend", "Leg Press": "Beinpresse", "Hip Adductor (Machine)": "Adduktoren (Maschine)", "Hip Abductor (Machine)": "Abduktoren (Maschine)", "Bench Press (Dumbbell)": "Bankdrücken (Kurzhantel)", "Skullcrusher (Dumbbell)": "French Press", "Deficit Deadlift (Barbell)": "Kreuzheben", "Chest Fly": "Butterfly (Maschine)", "Lat Pulldown (Single Arm)": "Latzug", "Lat Pull (Single Arm) - Front": "Latzug"};
 function exImg(n,g){n=String(n).trim();return 'img/'+slug(IMG_ALIAS[n]||n)+'-'+(g||gender())+'.jpg'}
-function imgTag(n,cls,attrs){return `<img class="${cls}" src="${exImg(n)}" alt="" loading="lazy" onerror="this.remove()" ${attrs||''}>`}
+function imgTag(n,cls,attrs){return `<img class="${cls}" src="${exImg(n)}" alt="" ${cls==='lithumb'?'loading="lazy" ':''}decoding="async" onerror="this.remove()" ${attrs||''}>`}
 const RPE=['','6','6.5','7','7.5','8','8.5','9','9.5','10'];
 function blankSets(n){return Array.from({length:n},()=>({kg:'',reps:'',done:false,type:'n'}))}
 function startWorkout(name,exs,rid){S.active={id:uid(),name,start:Date.now(),routineId:rid||null,exercises:exs};S.tab='training';saveActive(true);renderAll();window.scrollTo(0,0)}
@@ -683,6 +693,8 @@ const ACT={
   'gear':(el)=>openSheet({type:'gear',name:el.dataset.v,back:S.sheet&&S.sheet.type==='ex'?S.sheet:null}),
   'ios-timer':()=>iosTimer(),
   'iostimer-auto':()=>{try{localStorage.setItem('hantelbuch.iostimer',iosAuto()?'0':'1')}catch(e){}renderSheet()},
+  'ro-open':()=>openSheet({type:'rorder'}),
+  'ro-mv':(el)=>{const i=+el.dataset.i,k=i+(+el.dataset.v),x=S.routines;if(k<0||k>=x.length)return;[x[i],x[k]]=[x[k],x[i]];saveMeta();renderSheet();renderMain()},
   'srest':(el)=>openSheet({type:'setrest',i:+el.dataset.i,j:+el.dataset.j}),
   'srest-set':(el)=>{const{i,j}=S.sheet;S.active.exercises[i].sets[j].rest=+el.dataset.v;saveActive();renderSheet();renderMain()},
   'srest-add':(el)=>{const{i,j}=S.sheet;const e=S.active.exercises[i],st=e.sets[j];st.rest=Math.max(15,(st.rest||e.rest||S.restDefault)+(+el.dataset.v));saveActive();renderSheet();renderMain()},
@@ -697,7 +709,7 @@ const ACT={
   'ord-mv':(el)=>{const i=+el.dataset.i,k=i+(+el.dataset.v),x=S.active.exercises;if(k<0||k>=x.length)return;[x[i],x[k]]=[x[k],x[i]];saveActive();renderSheet();renderMain()},
   'ex-uni':(el)=>{const e=S.active.exercises[+el.dataset.i];e.uni=!e.uni;if(!e.uniRest)e.uniRest=15;saveActive();renderSheet();renderMain()},
   'ex-unirest':(el)=>{S.active.exercises[+el.dataset.i].uniRest=+el.dataset.v;saveActive();renderSheet();renderMain()},
-  'gender':(el)=>{try{localStorage.setItem('hantelbuch.gender',el.dataset.v)}catch(e){}renderSheet();renderMain()},
+  'gender':(el)=>{try{localStorage.setItem('hantelbuch.gender',el.dataset.v)}catch(e){}if(S.sheet&&S.sheet.type==='gender')closeSheet();else renderSheet();renderMain()},
   'sound-test':()=>{unlockAudio();setTimeout(beep,80)},
   'r-samples':()=>{const mk=(name,list)=>({id:uid(),name,exercises:list.map(([n,s,r])=>({name:n,sets:s,rest:r}))});
     S.routines.push(mk('Beispiel: Oberkörper',[['Bankdrücken (Langhantel)',4,150],['Langhantelrudern',4,120],['Schulterdrücken (Kurzhantel)',3,90],['Latzug',3,90],['Kurzhantelcurls',3,60],['Trizepsdrücken am Kabel',3,60]]),
@@ -827,6 +839,7 @@ function routinesFromImport(ws){
     n++;
   }
   for(const w of ws)for(const e of w.exercises)if(!LIB.some(x=>x[0]===e.name)&&!S.custom.some(x=>x[0]===e.name)){S.custom.push([e.name,e.cardio?'Cardio':guessCat(e.name)]);n=n||0}
+  const num1=r=>{const m=String(r.name).trim().match(/^(\d+)\s*\./);return m?+m[1]:999};S.routines.sort((a,b)=>num1(a)-num1(b));
   saveMeta();return n}
 $('#csvIn').addEventListener('change',async e=>{
   const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;closeSheet();
