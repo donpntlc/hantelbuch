@@ -36,7 +36,7 @@ button{cursor:pointer;border:0;background:none;padding:0}
 header.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-block:6px 14px}
 .brand{font-family:var(--f-display);font-weight:700;font-size:26px;letter-spacing:.06em;text-transform:uppercase}
 .brand b{color:var(--gold)}
-.brand .tagline{font-family:var(--f-body);font-size:10px;font-weight:700;letter-spacing:.16em;color:var(--muted);margin-top:4px}
+.brand .tagline{white-space:nowrap;font-family:var(--f-body);font-size:10px;font-weight:700;letter-spacing:.16em;color:var(--muted);margin-top:4px}
 .store{font-size:12px;color:var(--muted)}
 h2{font-family:var(--f-display);font-weight:600;font-size:22px;letter-spacing:.03em;text-transform:uppercase;margin:22px 0 10px;text-wrap:balance}
 h3{font-family:var(--f-display);font-weight:600;font-size:19px;letter-spacing:.02em;margin:0}
@@ -203,6 +203,7 @@ nav.tabs button.on{color:var(--gold)}
 <input type="file" id="soundIn" accept="audio/*,video/*,.mov,.mp4,.m4a,.mp3,.wav" hidden>
 <input type="file" id="csvIn" accept=".csv,text/csv" hidden>
 <input type="file" id="planIn" accept=".json,application/json,text/plain" hidden>
+<input type="file" id="bkIn" accept=".json,application/json,text/plain" hidden>
 
 <script>
 /* ---------- Übungsbibliothek ---------- */
@@ -238,7 +239,7 @@ const catOf=n=>(LIB.find(x=>x[0]===n)||S.custom.find(x=>x[0]===n)||LIB.find(x=>x
 /* ---------- Speicherung ---------- */
 const LS='hantelbuch.v1';
 function lsLoad(){try{return JSON.parse(localStorage.getItem(LS))||{}}catch(e){return{}}}
-function lsSave(){if(refs)return;try{localStorage.setItem(LS,JSON.stringify({routines:S.routines,custom:S.custom,seeded:S.seeded||[],gear:S.gear||{},goal:S.goal||null,workouts:S.workouts,body:S.body.map(b=>({...b,photos:[]})),active:S.active,restDefault:S.restDefault}))}catch(e){}}
+function lsSave(){if(refs)return;try{localStorage.setItem(LS,JSON.stringify({routines:S.routines,custom:S.custom,seeded:S.seeded||[],gear:S.gear||{},goal:S.goal||null,workouts:S.workouts,body:S.body.map(b=>({...b,photos:(b.photos||[]).filter(p=>String(p.id).startsWith('local-'))})),active:S.active,restDefault:S.restDefault}))}catch(e){}}
 const queues={};
 function q(key,fn){const p=(queues[key]||Promise.resolve()).then(fn).catch(e=>{console.warn(e);toast(e&&e.code==='quota_exceeded'?'Speicher voll. Lösche alte Einträge.':'Speichern fehlgeschlagen. Prüfe deine Verbindung.')});queues[key]=p;return p}
 function saveMeta(){if(refs){const d=clone({routines:S.routines,custom:S.custom,gear:S.gear||{},goal:S.goal||null,restDefault:S.restDefault,seeded:S.seeded||[],soundId:S.soundId||null,soundRaw:!!S.soundRaw});q('meta',()=>refs.meta.set(d))}else lsSave()}
@@ -387,13 +388,22 @@ function vHistory(){
 }
 
 function vExercises(){
-  return `<h2>Übungen</h2><input class="field" id="exq" data-in="exq" placeholder="Übung suchen" value="${esc(S.exq)}"><div class="list" id="exlist" style="margin-top:8px">${exList()}</div>`;
+  const m=exMode(),c=S.exCat||'';const cats=exCats();return `<h2>Übungen</h2><input class="field" id="exq" data-in="exq" placeholder="Übung suchen" value="${esc(S.exq)}">
+  <div class="row" style="gap:6px;margin-top:10px">${[['cat','Rubriken'],['az','A–Z'],['oft','Häufigste']].map(([k,l])=>`<button class="chip ${m===k?'on':''}" data-act="ex-mode" data-v="${k}">${l}</button>`).join('')}</div>
+  <div class="cats" style="margin-top:8px"><button class="chip ${!c?'on':''}" data-act="ex-cat" data-v="">Alle</button>${cats.map(x=>`<button class="chip ${c===x?'on':''}" data-act="ex-cat" data-v="${esc(x)}">${esc(x)}</button>`).join('')}</div>
+  <div class="list" id="exlist" style="margin-top:8px">${exList()}</div>`;
 }
+function exMode(){if(!S.exMode){try{S.exMode=localStorage.getItem('hantelbuch.exmode')}catch(e){}}return S.exMode||'cat'}
+function exCats(){const o=[...CATS,'Cardio'];const all=[...new Set(allNames().map(catOf))];return [...o.filter(c=>all.includes(c)),...all.filter(c=>!o.includes(c)).sort()]}
 function exList(){
   const qq=S.exq.toLowerCase();
   const names=allNames().filter(n=>n.toLowerCase().includes(qq));
-  const withData=names.map(n=>({n,s:sessions(n)})).sort((a,b)=>(b.s.length-a.s.length)||a.n.localeCompare(b.n,'de'));
-  return withData.map(({n,s})=>{const b=s.length?bests(n):null;return `<button class="li" data-act="ex-open" data-v="${esc(n)}"><span class="row" style="flex-wrap:nowrap;gap:0;min-width:0">${imgTag(n,'lithumb')}<span style="min-width:0;text-align:left"><span class="name">${esc(n)}</span><br><span class="muted mini">${catOf(n)}${s.length?' · zuletzt '+ago(s[0].w.start):''}</span></span></span><span class="num" style="color:var(--gold)">${b&&b.e1?fmt(b.e1)+' kg':''}</span></button>`}).join('')||'<div class="empty">Keine Übung gefunden.</div>';
+  const m=exMode(),fc=S.exCat||'';
+  const withData=names.filter(n=>!fc||catOf(n)===fc).map(n=>({n,s:sessions(n)})).sort(m==='oft'?(a,b)=>(b.s.length-a.s.length)||a.n.localeCompare(b.n,'de'):(a,b)=>a.n.localeCompare(b.n,'de'));
+  const li=({n,s})=>{const b=s.length?bests(n):null;return `<button class="li" data-act="ex-open" data-v="${esc(n)}"><span class="row" style="flex-wrap:nowrap;gap:0;min-width:0">${imgTag(n,'lithumb')}<span style="min-width:0;text-align:left"><span class="name">${esc(n)}</span><br><span class="muted mini">${catOf(n)}${s.length?' · zuletzt '+ago(s[0].w.start):''}</span></span></span><span class="num" style="color:var(--gold)">${b&&b.e1?fmt(b.e1)+' kg':''}</span></button>`};
+  if(!withData.length)return '<div class="empty">Keine Übung gefunden.</div>';
+  if(m!=='cat'||fc)return withData.map(li).join('');
+  return exCats().map(c=>{const g=withData.filter(x=>catOf(x.n)===c);return g.length?`<div class="exsep" style="margin:16px 2px 8px"><span>${esc(c)} · ${g.length}</span></div>${g.map(li).join('')}`:''}).join('');
 }
 
 function phSrc(p){if(String(p.id).startsWith('local-'))return `data-lph="${esc(p.id)}" alt=""`;return `src="/_blob/${esc(p.id)}"`}
@@ -456,7 +466,7 @@ function renderSheet(){
   const sh=$('#sheet'),bd=$('#backdrop');
   if(!S.sheet){sh.hidden=true;bd.hidden=true;sh.innerHTML='';return}
   sh.hidden=false;bd.hidden=false;
-  const f=({picker:sPicker,menu:sMenu,routine:sRoutine,hist:sHist,ex:sEx,confirm:sConfirm,summary:sSummary,rest:sRestDefault,data:sData,setrest:sSetRest,rpe:sRpe,order:sOrder,rorder:sROrder,tpl:sTpl,share:sShare,planin:sPlanIn,gender:sGender,gear:sGear})[S.sheet.type];
+  const f=({picker:sPicker,menu:sMenu,routine:sRoutine,hist:sHist,ex:sEx,confirm:sConfirm,summary:sSummary,rest:sRestDefault,data:sData,setrest:sSetRest,rpe:sRpe,order:sOrder,rorder:sROrder,tpl:sTpl,share:sShare,planin:sPlanIn,pay:sPay,gender:sGender,gear:sGear})[S.sheet.type];
   sh.innerHTML=`<div class="in"><div class="grab"></div>${f(S.sheet)}</div>`;growAll(sh);
 }
 function sPicker(){
@@ -537,8 +547,9 @@ function sData(){
   return `<h2>Daten</h2><div class="stack">
   <button class="btn ghost full" data-act="import">Aus Strong importieren (CSV)</button>
   <button class="btn ghost full" data-act="plan-import">Plan importieren (vom Coach)</button>
-  ${downloads?'<button class="btn ghost full" data-act="export">Backup herunterladen</button>':''}
-  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><p class="muted mini">Version 17.10. 00:10</p><p class="muted mini">In Strong: Profil → Einstellungen → Daten exportieren. Die CSV-Datei hier auswählen. Doppelte Trainings werden überschrieben, nicht doppelt angelegt.</p></div>`;
+  <button class="btn ghost full" data-act="export">Backup speichern</button>
+  <button class="btn ghost full" data-act="bk-in">Backup wiederherstellen</button>
+  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><div class="eyebrow" style="margin-top:6px">Abo</div><button class="btn ghost full" data-act="pay-open">${TIERS[tier()].n}${PAYWALL?'':' (Testphase: alles frei)'}</button><p class="muted mini">Version 17.10. 01:00</p><p class="muted mini">In Strong: Profil → Einstellungen → Daten exportieren. Die CSV-Datei hier auswählen. Doppelte Trainings werden überschrieben, nicht doppelt angelegt.</p></div>`;
 }
 
 /* ---------- Rest timer ---------- */
@@ -702,6 +713,9 @@ function finishWorkout(update){
 }
 
 const ACT={
+  'ex-mode':(el)=>{S.exMode=el.dataset.v;try{localStorage.setItem('hantelbuch.exmode',el.dataset.v)}catch(e){}renderMain()},
+  'ex-cat':(el)=>{S.exCat=el.dataset.v;renderMain()},
+  'pay-open':()=>{S.payWhy='';S.payNeed=tier()==='free'?'pro':'coach';openSheet({type:'pay'})},
   tab:(el)=>{S.tab=el.dataset.v;renderNav();renderMain();window.scrollTo(0,0)},
   'start-empty':()=>startWorkout(defaultName(),[]),
   'start-r':(el)=>{if(S.active)return toast('Beende zuerst das laufende Training.');const r=S.routines.find(x=>x.id===el.dataset.v);startWorkout(r.name,r.exercises.map(e=>({name:e.name,rest:e.rest||S.restDefault,sets:planSets(e),note:e.note||lastNotes(e.name).note,next:e.next!=null?e.next:lastNotes(e.name).next,nextDate:e.next!=null?(e.nextDate||null):lastNotes(e.name).nextDate,uni:!!e.uni,uniRest:e.uniRest,target:e.target||lastNotes(e.name).target||TARGETS[e.name]||''})),r.id);if(r.note){S.active.note=r.note;saveActive();renderMain()}},
@@ -793,7 +807,8 @@ const ACT={
   close:()=>closeSheet(),
   'data-menu':()=>openSheet({type:'data'}),
   import:()=>$('#csvIn').click(),
-  export:async()=>{try{await downloads.save({filename:'hantelbuch-backup-'+dayKey()+'.json',data:JSON.stringify({routines:S.routines,custom:S.custom,workouts:S.workouts,body:S.body},null,1)})}catch(e){if(e&&e.code!=='cancelled')toast('Backup konnte nicht gespeichert werden.')}},
+  export:()=>backupOut(),
+  'bk-in':()=>$('#bkIn').click(),
   photo:()=>$('#photoIn').click(),
   'w-save':async()=>{const v=num($('#wIn').value);if(v<20||v>400)return toast('Gib dein Gewicht in kg ein, z. B. 82,4.');const k=dayKey();const b=clone(S.body.find(x=>x.date===k)||{date:k,photos:[]});b.weight=Math.round(v*10)/10;await saveBody(b);renderMain();toast('Gewicht gespeichert')}
 };
@@ -963,6 +978,53 @@ async function shareOut(kind){const sel=S.shareSel||(S.tab==='routinen'?myRoutin
  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=fname;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 $('#planIn').addEventListener('change',async e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;try{const pl=readPlan(await f.text());openSheet({type:'planin',pl})}catch(err){toast('Das ist keine REPIT-Plan-Datei.')}});
 function checkPlanHash(){const m=location.hash.match(/#plan=([\w-]+)/);if(!m)return;try{const pl=readPlan(b64d(m[1]));history.replaceState(null,'',location.pathname);setTimeout(()=>openSheet({type:'planin',pl}),300)}catch(e){toast('Der Plan-Link ist beschädigt.')}}
+
+/* ---------- Backup ---------- */
+function b2d(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)})}
+async function backupOut(){toast('Backup wird erstellt …');const ph={};for(const b of S.body)for(const p of (b.photos||[]))if(String(p.id).startsWith('local-')){try{const bl=await idbGet('ph:'+p.id);if(bl)ph[p.id]=await b2d(bl)}catch(e){}}
+ const data=JSON.stringify({app:'repit-backup',v:1,date:new Date().toISOString(),routines:S.routines,custom:S.custom,workouts:S.workouts,body:S.body,gear:S.gear||{},goal:S.goal||null,seeded:S.seeded||[],restDefault:S.restDefault,photos:ph});
+ const fname='REPIT-Backup-'+dayKey()+'.json';const file=new File([data],fname,{type:'application/json'});
+ try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'REPIT Backup'});return}}catch(e){if(e&&e.name==='AbortError')return}
+ if(downloads){try{await downloads.save({filename:fname,data});return}catch(e){}}
+ const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=fname;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+function d2b(u){const [h,b]=u.split(',');const m=(h.match(/:(.*?);/)||[])[1]||'image/jpeg';const bin=atob(b);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:m})}
+async function backupIn(d){if(!d||!Array.isArray(d.workouts)||!Array.isArray(d.routines))throw new Error('format');
+ const byId=(cur,inc)=>{const m=new Map(cur.map(x=>[x.id,x]));for(const x of inc)m.set(x.id,x);return [...m.values()]};
+ const nw=d.workouts.filter(w=>!S.workouts.some(x=>x.id===w.id)).length;
+ S.workouts=byId(S.workouts,d.workouts).sort((a,b)=>new Date(b.start)-new Date(a.start));S.routines=byId(S.routines,d.routines);
+ for(const c of (d.custom||[]))if(!S.custom.some(x=>x[0]===c[0]))S.custom.push(c);
+ const bm=new Map(S.body.map(b=>[b.date,b]));for(const b of (d.body||[])){const o=bm.get(b.date);bm.set(b.date,o?{...o,...b,weight:b.weight??o.weight,photos:[...(o.photos||[]),...(b.photos||[]).filter(p=>!(o.photos||[]).some(q=>q.id===p.id))]}:b)}S.body=[...bm.values()].sort((a,b)=>a.date<b.date?1:-1);
+ for(const [id,u] of Object.entries(d.photos||{})){try{await idbSet('ph:'+id,d2b(u))}catch(e){}}
+ S.gear={...(d.gear||{}),...(S.gear||{})};if(!S.goal&&d.goal)S.goal=d.goal;S.seeded=[...new Set([...(S.seeded||[]),...(d.seeded||[])])];
+ if(refs){saveMeta();for(const w of d.workouts)saveWorkout(w);for(const b of (d.body||[]))saveBody(bm.get(b.date))}else lsSave();
+ closeSheet&&closeSheet();renderMain();toast(`Backup geladen: ${nw} neue Trainings, ${d.routines.length} Routinen`)}
+$('#bkIn').addEventListener('change',async e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;try{await backupIn(JSON.parse(await f.text()))}catch(err){toast('Das ist keine REPIT-Backup-Datei.')}});
+/* ---------- Abo-Stufen (vorbereitet, PAYWALL=false = alles frei) ---------- */
+const PAYWALL=false;
+const TIERS={free:{n:'Kostenlos',r:0,p:'0'},pro:{n:'REPIT Pro',r:1,p:'15 / Jahr'},coach:{n:'REPIT Coach',r:2,p:'80 / Jahr'}};
+const FREE_MAX=2;
+function tier(){if(!PAYWALL)return 'coach';let t='free';try{t=localStorage.getItem('hantelbuch.tier')||'free'}catch(e){}return TIERS[t]?t:'free'}
+function ownCount(){return S.routines.filter(r=>r.folder!=='coach').length}
+function need(t,why){if(TIERS[tier()].r>=TIERS[t].r)return true;S.payWhy=why||'';S.payNeed=t;openSheet({type:'pay'});return false}
+function needSlot(n,why){if(tier()!=='free'||ownCount()+(n||1)<=FREE_MAX)return true;return need('pro',why||`In der kostenlosen Version hast du ${FREE_MAX} Trainingstage. Mit Pro bekommst du unbegrenzt viele.`)}
+function sPay(){const cur=tier(),nd=S.payNeed||'pro';const row=(k,feat)=>`<div class="card" style="margin-bottom:10px;${k===nd?'border-color:rgba(201,162,74,.75);box-shadow:0 0 18px rgba(201,162,74,.2)':''}"><div class="spread"><b>${TIERS[k].n}</b><span style="color:var(--gold-hi);font-weight:800">${TIERS[k].p==='0'?'Gratis':'CHF/€ '+TIERS[k].p}</span></div><div class="mini" style="margin-top:6px;line-height:1.55">${feat.map(f=>'· '+esc(f)).join('<br>')}</div>${cur===k?'<div class="mini" style="margin-top:6px;color:var(--gold)">Dein aktuelles Abo</div>':''}</div>`;
+ return `<div class="spread"><h2>REPIT Abo</h2><button class="btn text sm" data-act="close">Schliessen</button></div>
+ ${S.payWhy?`<p class="mini" style="margin:6px 0 12px">${esc(S.payWhy)}</p>`:''}
+ ${row('free',[FREE_MAX+' eigene Trainingstage, jeden Tag trainierbar','Verlauf, Rekorde, Körper','Einzelne Tage teilen'])}
+ ${row('pro',['Unbegrenzt Trainingstage','6er-Split-Vorlage','Alles aus Kostenlos','oder CHF/€ 4 pro Monat'])}
+ ${row('coach',['Alles aus Pro','Bereich für Kunden-Pläne','Ganze Splits teilen (Datei oder Link)','Gewichts-Rechner für Kunden'])}
+ <button class="btn gold full" disabled style="opacity:.6">Kaufen – bald verfügbar</button>`}
+(function(){const wrap=(k,g)=>{const o=ACT[k];if(o)ACT[k]=(el)=>{if(g(el))return o(el)}};
+ wrap('r-new',()=>needSlot(1));
+ wrap('h-routine',()=>needSlot(1));
+ wrap('tpl-open',()=>need('pro','Die 6er-Split-Vorlage hat 6 Trainingstage. Dafür brauchst du REPIT Pro.'));
+ wrap('rf',(el)=>el.dataset.v!=='coach'||need('coach','Der Bereich für Kunden-Pläne gehört zu REPIT Coach.'));
+ wrap('calc-on',()=>need('coach','Der Gewichts-Rechner für Kunden gehört zu REPIT Coach.'));
+ const sh=()=>{const sel=S.shareSel||(S.tab==='routinen'?myRoutines():S.routines).map(r=>r.id);return sel.length<=1||need('coach','Einzelne Tage teilen kann jeder. Einen ganzen Split mit mehreren Tagen teilen geht mit REPIT Coach.')};
+ wrap('share-file',sh);wrap('share-link',sh);
+ wrap('plan-take',()=>needSlot((S.sheet&&S.sheet.pl&&S.sheet.pl.routines.length)||1,`Dieser Plan hat mehrere Trainingstage. In der kostenlosen Version hast du ${FREE_MAX}. Mit Pro bekommst du unbegrenzt viele.`));
+ wrap('pay-open',()=>true);
+})();
 
 init();
 </script>
