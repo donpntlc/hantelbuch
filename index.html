@@ -133,6 +133,9 @@ button.rbadge{cursor:pointer}
 .effb.on{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
 .effn{flex:none;width:34px;height:34px;border-radius:17px;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--gold-hi)}
 .effb.on .effn{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.effs{display:inline-block;min-width:15px;height:15px;line-height:15px;padding:0 3px;margin-left:3px;border-radius:4px;font-size:10px;font-weight:800;text-align:center;vertical-align:super;border:1px solid}
+.effs.e1{color:var(--ok);border-color:rgba(124,194,135,.6);background:rgba(124,194,135,.12)}.effs.e2{color:var(--gold-hi);border-color:rgba(201,162,74,.6);background:rgba(201,162,74,.12)}.effs.e3{color:#f0a35a;border-color:rgba(240,163,90,.6);background:rgba(240,163,90,.12)}.effs.e4{color:var(--bad);border-color:rgba(229,101,91,.6);background:rgba(229,101,91,.12)}
+.pgoal{font-size:11px;font-weight:800;color:var(--gold-hi);margin-top:2px}.pgoal.up{color:var(--ok)}
 .pohint{margin-top:8px;font-size:13px;line-height:1.4;padding:8px 10px;border-radius:10px;background:rgba(201,162,74,.08);border:1px solid rgba(201,162,74,.35)}
 .pohint b{color:var(--gold-hi)}.pohint.up{background:rgba(124,194,135,.10);border-color:rgba(124,194,135,.5)}.pohint.up b{color:var(--ok)}
 .ladder{display:flex;flex-direction:column;gap:6px;margin:12px 0}
@@ -370,28 +373,36 @@ function vActive(){
   </div>`;
 }
 function poRange(t){const m=String(t||'').match(/(\d+)\s*[-–]\s*(\d+)/);if(m)return [+m[1],+m[2]];const n=String(t||'').match(/(\d+)/);return n?[+n[1],+n[1]]:null}
-function poHint(e){if(isCardio(e)||!poOn())return '';const prev=(prevFor(e.name)||[]).filter(s=>s.type!=='w'&&num(s.reps));const rg=poRange(e.target);
- if(!prev.length)return `<div class="pohint"><b>Erstes Mal:</b> Such dir ein Gewicht, mit dem du ${rg?`${rg[0]}–${rg[1]}`:'ein paar'} saubere Wiederholungen schaffst. Ab dann gilt: jedes Mal 1 mehr.</div>`;
- const top=prev.reduce((a,b)=>num(b.kg)>num(a.kg)||(num(b.kg)===num(a.kg)&&num(b.reps)>num(a.reps))?b:a);const kg=num(top.kg),rp=num(top.reps);const lv=effLvl(top.rpe);
- if(lv===2&&!(rg&&rp>rg[1]))return `<div class="pohint"><b>Ziel heute:</b> ${kg?fmt(kg)+' kg × ':''}${rp} Wdh., diesmal komplett sauber. Letztes Mal war die letzte Wiederholung unsauber.</div>`;
- if(rg&&rp>rg[1]){const nk=kg?(kg<10?kg+1:Math.round((kg+2.5)/2.5)*2.5):0;return `<div class="pohint up"><b>Gewicht hoch!</b> Letztes Mal ${fmt(kg)} kg × ${rp}, das ist über deinem Ziel ${rg[0]}–${rg[1]}. Heute ${nk?`ca. <b>${fmt(nk)} kg</b>`:'schwerer'} und wieder bei ${rg[0]} Wdh. starten. Saubere Ausführung geht vor.</div>`}
- return `<div class="pohint"><b>Ziel heute:</b> ${kg?fmt(kg)+' kg × ':''}${rp+1} Wdh. – eine mehr als letztes Mal${rg?` (Ziel ${rg[0]}–${rg[1]}, darüber steigt das Gewicht)`:''}.</div>`}
+function warmList(){try{return JSON.parse(localStorage.getItem('hantelbuch.warmex')||'[]')}catch(e){return []}}
+function isWarmEx(n){return /warm|aufw[äa]rm/i.test(n)||warmList().includes(n)}
+function incKg(kg){return kg<10?kg+1:Math.round((kg+2.5)/2.5)*2.5}
+function setGoals(e){if(isCardio(e)||!poOn()||isWarmEx(e.name))return null;const rg=poRange(e.target);const prevW=(prevFor(e.name)||[]).filter(s=>s.type!=='w'&&num(s.reps));if(!prevW.length)return [];let k=0;
+ return e.sets.map(st=>{if(st.type==='w')return null;const p=prevW[k++];if(!p)return null;const kg=num(p.kg),rp=num(p.reps),lv=effLvl(p.rpe);
+  if(rg&&rp>rg[1])return {kg:kg?incKg(kg):0,reps:rg[0],up:true,from:rp};
+  if(lv===2)return {kg,reps:rp,clean:true};
+  return {kg,reps:rp+1}})}
+function applyGoals(){if(!S.active||!poOn())return;for(const e of S.active.exercises){const g=setGoals(e);if(!g)continue;g.forEach((G,j)=>{const st=e.sets[j];if(!G||!st||st.done)return;if(G.kg)st.kg=String(G.kg);st.reps=String(G.reps)})}saveActive();renderMain()}
+function poHint(e){const g=setGoals(e);if(!g)return '';const rg=poRange(e.target);
+ if(!g.length)return `<div class="pohint"><b>Erstes Mal:</b> Such dir ein Gewicht, mit dem du ${rg?`${rg[0]}–${rg[1]}`:'ein paar'} saubere Wiederholungen schaffst. Ab dann gilt: in jedem Satz 1 mehr.</div>`;
+ let n=0;const nums=g.map(x=>x?++n:null);const up=g.map((x,j)=>x&&x.up?nums[j]:null).filter(Boolean);const cl=g.map((x,j)=>x&&x.clean?nums[j]:null).filter(Boolean);const L=a=>a.length>1?a.slice(0,-1).join(', ')+' und '+a[a.length-1]:String(a[0]);
+ if(up.length)return `<div class="pohint up"><b>Gewicht hoch in Satz ${L(up)}.</b> Dort warst du letztes Mal über ${rg[1]} Wdh. ${up.length<n?'In den anderen Sätzen bleibt das Gewicht, Ziel ist 1 Wdh. mehr. ':''}Jeder Satz wird für sich gesteigert. Dein Ziel für jeden Satz ist schon eingetragen.</div>`;
+ return `<div class="pohint"><b>Ziel heute:</b> in jedem Satz 1 Wdh. mehr als letztes Mal${cl.length?` (Satz ${L(cl)}: gleiche Wdh., aber sauber)`:''}. Dein Ziel für jeden Satz ist schon eingetragen.${rg?` Kommt ein Satz über ${rg[1]} Wdh., steigt dort beim nächsten Mal das Gewicht.`:''}</div>`}
 const INTRO=[
  {k:'Warum tracken?',h:'Was du misst, wird besser.',t:'Dein Körper wird nur stärker, wenn du ihm jedes Mal ein bisschen mehr abverlangst. Ohne Notizen weisst du aber nicht, was „mehr“ ist. REPIT merkt sich jeden Satz und zeigt dir beim nächsten Mal genau, was du schlagen musst.'},
  {k:'Progressive Overload',h:'Jedes Mal 1 Wiederholung mehr.',t:'Jede Übung hat einen Zielbereich, z. B. 6–8 Wdh. Du versuchst jedes Training eine Wiederholung mehr zu schaffen. Kommst du über den Zielbereich, nimmst du mehr Gewicht und fängst wieder unten an.',lad:true},
  {k:'Rep it. Track it. Repeat.',h:'Immer das nächste Training.',t:'Deine Routinen laufen im Kreis: 1, 2, 3, 4 … und dann wieder von vorne. Keine festen Tage. Fällt ein Tag aus, machst du am nächsten freien Tag einfach das nächste Training. REPIT zeigt es dir mit „Als Nächstes“ an, und im Training steht bei jeder Übung dein Ziel für heute.'}];
 function sIntro(){const i=S.introStep||0,x=INTRO[i];return `<div class="eyebrow">${esc(x.k)}</div><h2 style="margin-top:4px">${esc(x.h)}</h2><p class="mini" style="line-height:1.55;margin-top:8px">${esc(x.t)}</p>
- ${x.lad?`<div class="ladder">${[['Training 1','60 kg × 6','',''],['Training 2','60 kg × 7','','+1'],['Training 3','60 kg × 8','','+1'],['Training 4','60 kg × 9','g','über dem Ziel!'],['Training 5','62,5 kg × 6','o','neues Gewicht']].map(([a,b,c,d],j)=>`<div class="lad"><span class="muted">${a}</span><i class="${c}" style="width:${55+j*11}%">${b}${d?`<span style="margin-left:8px;font-weight:600;opacity:.8">${d}</span>`:''}</i></div>`).join('')}</div><p class="muted mini" style="line-height:1.5">Jeder Satz so nah wie möglich ans Muskelversagen, aber saubere Ausführung ist wichtiger als mehr Gewicht. Bewerte jeden Satz ehrlich mit 1–4: 1 noch Luft, 2 noch eine unsaubere, 3 nur noch halb, 4 Muskelversagen.</p>`:''}
+ ${x.lad?`<div class="ladder">${[['Training 1','60 kg × 6','',''],['Training 2','60 kg × 7','','+1'],['Training 3','60 kg × 8','','+1'],['Training 4','60 kg × 9','g','über dem Ziel!'],['Training 5','62,5 kg × 6','o','neues Gewicht']].map(([a,b,c,d],j)=>`<div class="lad"><span class="muted">${a}</span><i class="${c}" style="width:${55+j*11}%">${b}${d?`<span style="margin-left:8px;font-weight:600;opacity:.8">${d}</span>`:''}</i></div>`).join('')}</div><p class="muted mini" style="line-height:1.5">Jeder Satz so nah wie möglich ans Muskelversagen, aber saubere Ausführung ist wichtiger als mehr Gewicht. Das gilt für jeden Satz einzeln: Schafft Satz 1 mehr als das Ziel, steigt nur dort das Gewicht. Bewerte jeden Satz ehrlich mit 1–4: 1 noch Luft, 2 noch eine unsaubere, 3 nur noch halb, 4 Muskelversagen.</p>`:''}
  <div class="dots">${INTRO.map((_,j)=>`<span class="${j===i?'on':''}"></span>`).join('')}</div>
  <div class="row" style="gap:8px;flex-wrap:nowrap">${i>0?'<button class="btn ghost" style="flex:1" data-act="intro-prev">Zurück</button>':''}<button class="btn gold" style="flex:2" data-act="intro-next">${i<INTRO.length-1?'Weiter':'Los geht’s'}</button></div>`}
 function introSeen(){try{return !!localStorage.getItem('hantelbuch.intro')}catch(e){return true}}
 function exCard(e,i,cur){
   const prev=prevFor(e.name)||[];
-  const cardio=isCardio(e);
-  const rows=e.sets.map((s,j)=>{const p=prev[j]||s.goal;const pk=p?String(num(p.kg)):'';const pr=p?String(num(p.reps)):'';let wn=0;
+  const cardio=isCardio(e);const goals=setGoals(e)||[];
+  const rows=e.sets.map((s,j)=>{const p=prev[j]||s.goal;const G=goals[j];const pk=G?String(G.kg||''):p?String(num(p.kg)):'';const pr=G?String(G.reps):p?String(num(p.reps)):'';let wn=0;
     return `<tr class="setrow ${s.done?'done':''}" data-i="${i}" data-j="${j}">
     <td><button class="setno ${s.type==='w'?'w':''}" data-act="set-type" data-i="${i}" data-j="${j}" aria-label="Satztyp wechseln">${s.type==='w'?'W':e.sets.slice(0,j+1).filter(x=>x.type!=='w').length}</button></td>
-    <td class="prev">${p?(cardio?`${num(p.reps)} min`:`${fmt(num(p.kg))} × ${num(p.reps)}${p.rpe?' · '+effLvl(p.rpe):''}`):'–'}</td>
+    <td class="prev">${p?(cardio?`${num(p.reps)} min`:`${fmt(num(p.kg))} × ${num(p.reps)}${p.rpe?effBadge(p.rpe):''}`):'–'}${G&&!s.done?`<div class="pgoal${G.up?' up':''}">${G.up?'↑ '+(G.kg?fmt(G.kg)+' kg':'schwerer'):G.clean?'sauber':'+1 Wdh.'}</div>`:''}</td>
     ${cardio?'<td></td>':`<td><input class="cell" inputmode="decimal" id="kg-${i}-${j}" data-in="kg" data-i="${i}" data-j="${j}" value="${esc(s.kg)}" placeholder="${esc(pk)}" aria-label="Kilogramm"></td>`}
     <td><span class="rcell"><input class="cell" inputmode="numeric" id="rp-${i}-${j}" data-in="reps" data-i="${i}" data-j="${j}" value="${esc(s.reps)}" placeholder="${esc(pr)}" aria-label="${cardio?'Minuten':'Wiederholungen'}">${cardio?'':`<button class="rpeb ${s.rpe?'':'empty'}" data-act="rpe" data-i="${i}" data-j="${j}" aria-label="Anstrengung 1 bis 4 wählen">${s.rpe?effLvl(s.rpe):'1–4'}</button>`}</span></td>
     <td style="white-space:nowrap"><button class="sdel" data-act="set-del" data-i="${i}" data-j="${j}">Löschen</button><button class="check ${e.uni&&s.half&&!s.done?'half':''}" data-act="done" data-i="${i}" data-j="${j}" aria-label="Satz abhaken">${e.uni&&s.half&&!s.done?'L ✓':''}<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></button></td></tr>
@@ -540,6 +551,7 @@ function sMenu({i}){
   <div class="row"><button class="chip ${e.uni?'on':''}" data-act="ex-uni" data-i="${i}">${e.uni?'✓ Einseitig an':'Einseitig aus'}</button>${e.uni?[10,15,20,30,45,60].map(s=>`<button class="chip ${(e.uniRest||15)===s?'on':''}" data-act="ex-unirest" data-i="${i}" data-v="${s}">Wechsel ${mmss(s)}</button>`).join(''):''}</div>
   ${e.uni?'<div class="muted mini" style="margin-top:6px">Erster Haken = eine Seite fertig, dann läuft die Wechselpause. Zweiter Haken = Satz fertig, dann normale Pause.</div>':''}
   <div class="eyebrow" style="margin:14px 0 6px">Variante (eigener Verlauf)</div><input class="field" data-in="variant" data-i="${i}" value="${esc(variantOf(e.name))}" placeholder="z. B. Aufwärmen oder +kg"><div class="muted mini" style="margin-top:4px">Gleiche Übung, aber getrennte Werte und Notizen, z. B. Dips zum Aufwärmen am Brusttag und Dips mit Zusatzgewicht am anderen Tag. Gilt auch für die Routine.</div>
+  <div class="eyebrow" style="margin:14px 0 8px">Aufwärm-Übung</div><div class="row"><button class="chip ${isWarmEx(e.name)?'on':''}" data-act="ex-warm" data-i="${i}">${isWarmEx(e.name)?'✓ Aufwärmen, keine Ziel-Hinweise':'Normale Übung'}</button></div><div class="muted mini" style="margin-top:4px">Einzelne Aufwärmsätze markierst du, indem du auf die Satznummer tippst (W).</div>
   <div class="list" style="margin-top:12px">
   <button class="li" data-act="ex-move" data-i="${i}" data-v="-1">Nach oben schieben</button>
   <button class="li" data-act="ex-move" data-i="${i}" data-v="1">Nach unten schieben</button>
@@ -565,7 +577,7 @@ function sHist({id}){
   return `<h2>${esc(w.name)}</h2><div class="muted mini num">${fDate(w.start)}, ${new Date(w.start).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'})} · ${dur((w.end||w.start)-w.start)} · ${fmt(wVolume(w))} kg · ${wSets(w)} Sätze</div>
   ${(w.prs||[]).length?`<div class="row" style="margin-top:10px">${w.prs.map(p=>`<span class="pr">${esc(p.kind)}: ${esc(p.name)}</span>`).join('')}</div>`:''}
   <div class="ntl">Notiz zum Training</div><textarea class="nt" data-in="hwnote" data-w="${w.id}" rows="${ntRows(w.note)}" placeholder="Notiz zum Training">${esc(w.note||'')}</textarea>
-  <div class="stack" style="margin-top:12px">${w.exercises.map((e,k)=>`<div><div style="font-weight:700;color:var(--gold-hi);cursor:pointer" data-act="ex-open" data-v="${esc(e.name)}">${exTitle(e.name)} <span class="muted mini">ⓘ</span></div>${targetBox(`data-in="hnt" data-w="${w.id}" data-k="${k}"`,e.target)}${e.sets.filter(s=>s.done).map((s,j)=>`<div class="wline num"><span class="muted">${s.type==='w'?'W':j+1}</span><span>${fmt(num(s.kg))} kg × ${num(s.reps)}${s.rpe?` <span class="muted">· Stufe ${effLvl(s.rpe)}</span>`:''}${s.rest?` <span class="muted">· Pause ${mmss(s.rest)}</span>`:''}</span></div>`).join('')}${noteBox(`data-in="hnt" data-w="${w.id}" data-k="${k}"`,e.note,e.next,e.nextDate)}</div>`).join('')}</div>
+  <div class="stack" style="margin-top:12px">${w.exercises.map((e,k)=>`<div><div style="font-weight:700;color:var(--gold-hi);cursor:pointer" data-act="ex-open" data-v="${esc(e.name)}">${exTitle(e.name)} <span class="muted mini">ⓘ</span></div>${targetBox(`data-in="hnt" data-w="${w.id}" data-k="${k}"`,e.target)}${e.sets.filter(s=>s.done).map((s,j)=>`<div class="wline num"><span class="muted">${s.type==='w'?'W':j+1}</span><span>${fmt(num(s.kg))} kg × ${num(s.reps)}${s.rpe?effBadge(s.rpe):''}${s.rest?` <span class="muted">· Pause ${mmss(s.rest)}</span>`:''}</span></div>`).join('')}${noteBox(`data-in="hnt" data-w="${w.id}" data-k="${k}"`,e.note,e.next,e.nextDate)}</div>`).join('')}</div>
   <div class="stack" style="margin-top:16px"><button class="btn ghost full" data-act="h-routine" data-v="${w.id}">Als Routine speichern</button><button class="btn ghost full" data-act="h-again" data-v="${w.id}">Nochmals machen</button><button class="btn danger full" data-act="h-del" data-v="${w.id}">Training löschen</button></div>`;
 }
 function notesBlock(name){const nh=noteHist(name);const rn=(S.routines.flatMap(r=>r.exercises).find(e=>e.name===name&&e.note)||{}).note||'';
@@ -601,7 +613,7 @@ function sData(){
   <button class="btn ghost full" data-act="intro-open">So funktioniert REPIT</button>
   <div class="spread" style="margin-top:4px"><span class="mini">Ziel-Hinweise im Training</span><button class="chip ${poOn()?'on':''}" data-act="po-toggle">${poOn()?'An':'Aus'}</button></div>
   <p class="muted mini">Beim Importieren erkennt REPIT die Datei selbst: dein Backup, ein Trainingsplan vom Coach oder ein CSV-Export aus einer anderen Tracking-App. Doppelte Trainings werden nicht doppelt angelegt.</p>
-  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><div class="eyebrow" style="margin-top:6px">Abo</div><button class="btn ghost full" data-act="pay-open">${TIERS[tier()].n}${PAYWALL?'':' (Testphase: alles frei)'}</button><p class="muted mini">Version 17.10. 02:45</p></div>`;
+  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><div class="eyebrow" style="margin-top:6px">Abo</div><button class="btn ghost full" data-act="pay-open">${TIERS[tier()].n}${PAYWALL?'':' (Testphase: alles frei)'}</button><p class="muted mini">Version 17.10. 03:00</p></div>`;
 }
 
 /* ---------- Rest timer ---------- */
@@ -674,7 +686,7 @@ function seedRoutines(){S.seeded=S.seeded||[];migrate();if(S.seeded.includes('ba
  BACK3.exercises.forEach(e=>{if(!S.custom.some(c=>c[0]===e.name))S.custom.push([e.name,e.name==='Stairmaster'?'Cardio':'Rücken'])})}
  migrate();
  S.seeded.push('back3');saveMeta()}
-function planSets(e){const n=e.sets||1,p=e.plan||[];return Array.from({length:n},(_,k)=>{const x=p[k]||p[p.length-1];return x?{kg:x.kg,reps:x.reps,rpe:'',done:false,type:'n',rest:x.rest,goal:x}:{kg:'',reps:'',done:false,type:'n'}})}
+function planSets(e){const n=e.sets||1,p=e.plan||[];return Array.from({length:n},(_,k)=>{const x=p[k]||p[p.length-1];return x?{kg:x.kg,reps:x.reps,rpe:'',done:false,type:x.type==='w'?'w':'n',rest:x.rest,goal:x}:{kg:'',reps:'',done:false,type:'n'}})}
 function lastNotes(name){for(const w of S.workouts){const e=(w.exercises||[]).find(x=>x.name===name);if(e)return {note:e.note||'',next:e.next||'',nextDate:e.nextDate||null,target:e.target||''}}return {note:'',next:'',nextDate:null,target:''}}
 const TARGETS={'Pull Up (Warm Up)':'12','Lat Pulldown (Single Arm)':'6-10','Seated Wide-Grip Row (Cable)':'6-8 (+2)','Seated Close-Grip Row (Cable)':'6-8 (+2)','Lat Pull (Single Arm) - Front':'10-12','Cable Pulldown':'10-12','Stairmaster':'15-60 min'};
 const GEAR=[['sitz','Sitzhöhe'],['lehne','Lehne'],['kabel','Kabelhöhe'],['polster','Polster / Rolle'],['fuss','Fussplatte'],['griff','Griff'],['sonst','Sonstiges']];
@@ -702,11 +714,12 @@ function fShort(t){const d=new Date(t);return d.toLocaleDateString('de-CH',{day:
 function growAll(root){(root||document).querySelectorAll('textarea.nt').forEach(grow)}
 function grow(el){el.rows=1;el.style.height='auto';el.style.height=(el.scrollHeight+2)+'px'}
 const EFF=[{v:'8',n:1,t:'Noch Luft',d:'Es wären noch 2 oder mehr saubere Wiederholungen drin gewesen.'},{v:'9',n:2,t:'Noch 1, aber unsauber',d:'Eine ganze Wiederholung ging noch, aber nicht mehr sauber.'},{v:'9.5',n:3,t:'Nur noch halb',d:'Die letzte Wiederholung ging nur noch halb, nicht mehr ganz hoch.'},{v:'10',n:4,t:'Muskelversagen',d:'Am Ende ging gar nichts mehr.'}];
+function effBadge(r){const l=effLvl(r);return l?`<sup class="effs e${l}" title="Anstrengung ${l} von 4">${l}</sup>`:''}
 function effLvl(r){const x=num(r);if(!x)return 0;return x>=10?4:x>=9.5?3:x>=9?2:1}
 function poOn(){try{return localStorage.getItem('hantelbuch.pohint')!=='0'}catch(e){return true}}
 function sRpe({i,j}){const st=S.active.exercises[i].sets[j],cur=effLvl(st.rpe);
  return `<div class="spread"><h2>Wie schwer war der Satz?</h2><button class="btn text sm" data-act="rpe-clear">Entfernen</button></div>
- <div class="stack" style="margin-top:12px">${EFF.map(x=>`<button class="effb ${cur===x.n?'on':''}" data-act="rpe-set" data-v="${x.v}"><span class="effn">${x.n}</span><span style="text-align:left"><b>${esc(x.t)}</b><br><span class="muted mini">${esc(x.d)}</span></span></button>`).join('')}</div>
+ <div class="stack" style="margin-top:12px">${EFF.map(x=>`<button class="effb ${cur===x.n?'on':''}" data-act="rpe-set" data-v="${x.v}"><span class="effn"><span class="effs e${x.n}" style="margin:0;vertical-align:middle;font-size:13px;min-width:22px;height:22px;line-height:22px">${x.n}</span></span><span style="text-align:left"><b>${esc(x.t)}</b><br><span class="muted mini">${esc(x.d)}</span></span></button>`).join('')}</div>
  <p class="muted mini" style="margin-top:12px;line-height:1.5">Bewerte ehrlich. Saubere Ausführung ist wichtiger, als auf Krampf das Gewicht zu erhöhen. Eine unsaubere Wiederholung zählt nicht als volle Wiederholung.</p>`}
 function sRpeOld({i,j}){const st=S.active.exercises[i].sets[j],cur=String(st.rpe||'');
  return `<div class="spread"><h2>RPE</h2><button class="btn text sm" data-act="rpe-clear">Entfernen</button></div><div class="muted mini">Wie schwer war der Satz?</div>
@@ -772,6 +785,7 @@ function finishWorkout(update){
 }
 
 const ACT={
+  'ex-warm':(el)=>{const n=S.active.exercises[+el.dataset.i].name;let x=warmList();if(x.includes(n))x=x.filter(v=>v!==n);else if(!/warm|aufw[äa]rm/i.test(n))x.push(n);else return toast('Diese Übung heisst schon Aufwärmen.');try{localStorage.setItem('hantelbuch.warmex',JSON.stringify(x))}catch(e){}renderSheet();renderMain()},
   'po-toggle':()=>{try{localStorage.setItem('hantelbuch.pohint',poOn()?'0':'1')}catch(e){}renderSheet();renderMain()},
   'intro-open':()=>{S.introStep=0;openSheet({type:'intro'})},
   'intro-prev':()=>{S.introStep=Math.max(0,(S.introStep||0)-1);renderSheet()},
@@ -788,7 +802,7 @@ const ACT={
   'pay-open':()=>{S.payWhy='';S.payNeed=tier()==='free'?'pro':'coach';openSheet({type:'pay'})},
   tab:(el)=>{S.tab=el.dataset.v;renderNav();renderMain();window.scrollTo(0,0)},
   'start-empty':()=>startWorkout(defaultName(),[]),
-  'start-r':(el)=>{if(S.active)return toast('Beende zuerst das laufende Training.');const r=S.routines.find(x=>x.id===el.dataset.v);startWorkout(r.name,r.exercises.map(e=>({name:e.name,rest:e.rest||S.restDefault,sets:planSets(e),note:e.note||lastNotes(e.name).note,next:e.next!=null?e.next:lastNotes(e.name).next,nextDate:e.next!=null?(e.nextDate||null):lastNotes(e.name).nextDate,uni:!!e.uni,uniRest:e.uniRest,target:e.target||lastNotes(e.name).target||TARGETS[e.name]||''})),r.id);if(r.note){S.active.note=r.note;saveActive();renderMain()}},
+  'start-r':(el)=>{if(S.active)return toast('Beende zuerst das laufende Training.');const r=S.routines.find(x=>x.id===el.dataset.v);startWorkout(r.name,r.exercises.map(e=>({name:e.name,rest:e.rest||S.restDefault,sets:planSets(e),note:e.note||lastNotes(e.name).note,next:e.next!=null?e.next:lastNotes(e.name).next,nextDate:e.next!=null?(e.nextDate||null):lastNotes(e.name).nextDate,uni:!!e.uni,uniRest:e.uniRest,target:e.target||lastNotes(e.name).target||TARGETS[e.name]||''})),r.id);applyGoals();if(r.note){S.active.note=r.note;saveActive();renderMain()}},
   'add-ex':()=>{S.pq='';S.pcat='';openSheet({type:'picker',target:'active'})},
   'add-ex-r':()=>{S.pq='';S.pcat='';openSheet({type:'picker',target:'routine'})},
   'picker-back':()=>{S.sheet.target==='routine'?openSheet({type:'routine'}):closeSheet()},
