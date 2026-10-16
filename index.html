@@ -135,6 +135,7 @@ button.rbadge{cursor:pointer}
 .effb.on .effn{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
 .effs{display:inline-block;min-width:15px;height:15px;line-height:15px;padding:0 3px;margin-left:3px;border-radius:4px;font-size:10px;font-weight:800;text-align:center;vertical-align:super;border:1px solid}
 .effs.e1{color:var(--ok);border-color:rgba(124,194,135,.6);background:rgba(124,194,135,.12)}.effs.e2{color:var(--gold-hi);border-color:rgba(201,162,74,.6);background:rgba(201,162,74,.12)}.effs.e3{color:#f0a35a;border-color:rgba(240,163,90,.6);background:rgba(240,163,90,.12)}.effs.e4{color:var(--bad);border-color:rgba(229,101,91,.6);background:rgba(229,101,91,.12)}
+.exmeta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-start;margin:-2px 0 4px}.exmeta .tgt,.exmeta .gear{margin:0}
 .pgoal{font-size:11px;font-weight:800;color:var(--gold-hi);margin-top:2px}.pgoal.up{color:var(--ok)}
 .pohint{margin-top:8px;font-size:13px;line-height:1.4;padding:8px 10px;border-radius:10px;background:rgba(201,162,74,.08);border:1px solid rgba(201,162,74,.35)}
 .pohint b{color:var(--gold-hi)}.pohint.up{background:rgba(124,194,135,.10);border-color:rgba(124,194,135,.5)}.pohint.up b{color:var(--ok)}
@@ -408,8 +409,9 @@ function exCard(e,i,cur){
     <td style="white-space:nowrap"><button class="sdel" data-act="set-del" data-i="${i}" data-j="${j}">Löschen</button><button class="check ${e.uni&&s.half&&!s.done?'half':''}" data-act="done" data-i="${i}" data-j="${j}" aria-label="Satz abhaken">${e.uni&&s.half&&!s.done?'L ✓':''}<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></button></td></tr>
     <tr class="restrow"><td colspan="5"><button class="setrest" data-act="srest" data-i="${i}" data-j="${j}" aria-label="Pause nach diesem Satz ändern"><span></span>${mmss(s.rest||e.rest||S.restDefault)}<span></span></button></td></tr>`}).join('');
   const lt=lastEx(e.name);
-  return `<div class="card ex${cur?' cur':''}"><div class="ex-head"><div class="row" style="flex-wrap:nowrap;gap:10px;min-width:0;align-items:flex-start">${imgTag(e.name,'exthumb',`data-act="ex-open" data-v="${esc(e.name)}"`)}<div style="min-width:0"><h3 data-act="ex-open" data-v="${esc(e.name)}">${exTitle(e.name)}</h3><div class="muted mini">${lt?'Zuletzt '+ago(lt):'Erstes Mal'}${e.uni?` · <span style="color:var(--gold)">einseitig, Wechsel ${mmss(e.uniRest||15)}</span>`:''}</div>${cardio?'':targetBox(`data-in="ent" data-i="${i}"`,e.target)}${gearBtn(e.name)}</div></div>
+  return `<div class="card ex${cur?' cur':''}"><div class="ex-head"><div class="row" style="flex-wrap:nowrap;gap:10px;min-width:0;align-items:flex-start">${imgTag(e.name,'exthumb',`data-act="ex-open" data-v="${esc(e.name)}"`)}<div style="min-width:0"><h3 data-act="ex-open" data-v="${esc(e.name)}">${exTitle(e.name)}</h3><div class="muted mini">${lt?'Zuletzt '+ago(lt):'Erstes Mal'}${e.uni?` · <span style="color:var(--gold)">einseitig, Wechsel ${mmss(e.uniRest||15)}</span>`:''}</div></div></div>
   <div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn text sm" data-act="ex-menu" data-i="${i}" aria-label="Optionen">•••</button></div></div>
+  <div class="exmeta">${cardio?'':targetBox(`data-in="ent" data-i="${i}"`,e.target)}${gearBtn(e.name)}</div>
   ${poHint(e)}
   ${noteBox(`data-in="ent" data-i="${i}"`,e.note,e.next,e.nextDate)}
   <table class="sets" style="margin-top:8px"><thead><tr><th>Satz</th><th>Vorher</th><th>${cardio?'':'kg'}</th><th>${cardio?'Min':'Wdh.'}</th><th></th></tr></thead><tbody>${rows}</tbody></table>
@@ -613,7 +615,7 @@ function sData(){
   <button class="btn ghost full" data-act="intro-open">So funktioniert REPIT</button>
   <div class="spread" style="margin-top:4px"><span class="mini">Ziel-Hinweise im Training</span><button class="chip ${poOn()?'on':''}" data-act="po-toggle">${poOn()?'An':'Aus'}</button></div>
   <p class="muted mini">Beim Importieren erkennt REPIT die Datei selbst: dein Backup, ein Trainingsplan vom Coach oder ein CSV-Export aus einer anderen Tracking-App. Doppelte Trainings werden nicht doppelt angelegt.</p>
-  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><div class="eyebrow" style="margin-top:6px">Abo</div><button class="btn ghost full" data-act="pay-open">${TIERS[tier()].n}${PAYWALL?'':' (Testphase: alles frei)'}</button><p class="muted mini">Version 17.10. 03:00</p></div>`;
+  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><div class="eyebrow" style="margin-top:6px">Abo</div><button class="btn ghost full" data-act="pay-open">${TIERS[tier()].n}${PAYWALL?'':' (Testphase: alles frei)'}</button><p class="muted mini">Version 17.10. 03:15</p></div>`;
 }
 
 /* ---------- Rest timer ---------- */
