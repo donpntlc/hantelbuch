@@ -129,6 +129,13 @@ tr.swiped td{background:rgba(220,80,80,.08)}
 button.rbadge{cursor:pointer}
 .rcard.next{border-color:rgba(201,162,74,.75);box-shadow:0 0 0 1px rgba(201,162,74,.25),0 0 22px rgba(201,162,74,.22)}
 .rcard.next .rbadge{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.pohint{margin-top:8px;font-size:13px;line-height:1.4;padding:8px 10px;border-radius:10px;background:rgba(201,162,74,.08);border:1px solid rgba(201,162,74,.35)}
+.pohint b{color:var(--gold-hi)}.pohint.up{background:rgba(124,194,135,.10);border-color:rgba(124,194,135,.5)}.pohint.up b{color:var(--ok)}
+.ladder{display:flex;flex-direction:column;gap:6px;margin:12px 0}
+.lad{display:grid;grid-template-columns:70px 1fr;gap:8px;align-items:center;font-size:13px}
+.lad i{display:flex;align-items:center;height:28px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);padding:0 10px;font-style:normal;font-weight:700;white-space:nowrap}
+.lad i.g{background:rgba(201,162,74,.18);border-color:rgba(201,162,74,.6)}.lad i.o{background:rgba(124,194,135,.15);border-color:rgba(124,194,135,.6)}
+.dots{display:flex;gap:6px;justify-content:center;margin:14px 0 10px}.dots span{width:8px;height:8px;border-radius:4px;background:var(--line)}.dots span.on{background:var(--gold);width:22px}
 .nexttag{white-space:nowrap;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
 .vtag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--gold-ink);background:var(--gold);border-radius:6px;padding:2px 6px;vertical-align:middle;margin-left:4px}
 .howto{font-size:14px;line-height:1.5;margin:4px 0 10px}
@@ -308,7 +315,7 @@ function renderNav(){$('#nav').innerHTML=TABS.map(([k,l])=>`<button data-act="ta
 function genderSet(){try{return !!localStorage.getItem('hantelbuch.gender')}catch(e){return true}}
 let _hashChecked=false;
 function _afterRender(){if(document.querySelector('img[data-lph]'))hydratePhotos()}
-function renderAll(){if(!_hashChecked&&S.ready){_hashChecked=true;checkPlanHash()}if(!S.sheet&&!genderSet())S.sheet={type:'gender'};renderNav();renderMain();renderSheet();renderRest()}
+function renderAll(){if(!_hashChecked&&S.ready){_hashChecked=true;checkPlanHash()}if(!S.sheet&&!genderSet())S.sheet={type:'gender'};else if(!S.sheet&&S.ready!==false&&!introSeen()){S.introStep=0;S.sheet={type:'intro'};try{localStorage.setItem('hantelbuch.intro','1')}catch(e){}}renderNav();renderMain();renderSheet();renderRest()}
 function sGender(){return `<h2>Willkommen</h2><p class="muted" style="margin:4px 0 14px">Wer trainiert? Danach zeigen dir die Übungsbilder einen Mann oder eine Frau. Ändern kannst du das jederzeit unter Verlauf → Daten.</p><div class="stack"><button class="btn gold full" data-act="gender" data-v="m">Mann</button><button class="btn gold full" data-act="gender" data-v="w">Frau</button></div>`}
 function renderMain(){
   if(!S.ready)return;
@@ -335,7 +342,7 @@ function vTraining(){
   const wk=S.workouts.filter(w=>w.start>Date.now()-7*864e5).length;
   return `<div class="card hero stack"><div class="eyebrow">Diese Woche</div><div class="big num">${wk} ${wk===1?'Training':'Trainings'}</div>
   ${last?`<div class="muted mini">Zuletzt: ${esc(last.name)}, ${fDate(last.start)} · ${fmt(wVolume(last))} kg Volumen</div>`:'<div class="muted mini">Starte dein erstes Training. Jeder Satz wird gespeichert.</div>'}
-  <button class="btn gold full" data-act="start-empty">Leeres Training starten</button></div>
+  <button class="btn gold full" data-act="start-empty">Leeres Training starten</button><button class="btn text sm" data-act="intro-open">So funktioniert REPIT →</button></div>
   <div class="spread"><h2>Routinen</h2>${S.routines.filter(r=>r.folder!=='coach').length>1?'<button class="btn text sm" data-act="ro-open">Reihenfolge</button>':''}</div>
   ${S.routines.filter(r=>r.folder!=='coach').length?`<div class="rgrid">${S.routines.filter(r=>r.folder!=='coach').map(routineCard).join('')}</div>`:emptyRoutines()}
   <div class="sep"></div>
@@ -358,6 +365,21 @@ function vActive(){
     <button class="btn danger full" data-act="cancel">Training verwerfen</button>
   </div>`;
 }
+function poRange(t){const m=String(t||'').match(/(\d+)\s*[-–]\s*(\d+)/);if(m)return [+m[1],+m[2]];const n=String(t||'').match(/(\d+)/);return n?[+n[1],+n[1]]:null}
+function poHint(e){if(isCardio(e))return '';const prev=(prevFor(e.name)||[]).filter(s=>s.type!=='w'&&num(s.reps));const rg=poRange(e.target);
+ if(!prev.length)return `<div class="pohint"><b>Erstes Mal:</b> Such dir ein Gewicht, mit dem du ${rg?`${rg[0]}–${rg[1]}`:'ein paar'} saubere Wiederholungen schaffst. Ab dann gilt: jedes Mal 1 mehr.</div>`;
+ const top=prev.reduce((a,b)=>num(b.kg)>num(a.kg)||(num(b.kg)===num(a.kg)&&num(b.reps)>num(a.reps))?b:a);const kg=num(top.kg),rp=num(top.reps);
+ if(rg&&rp>rg[1]){const nk=kg?(kg<10?kg+1:Math.round((kg+2.5)/2.5)*2.5):0;return `<div class="pohint up"><b>Gewicht hoch!</b> Letztes Mal ${fmt(kg)} kg × ${rp}, das ist über deinem Ziel ${rg[0]}–${rg[1]}. Heute ${nk?`ca. <b>${fmt(nk)} kg</b>`:'schwerer'} und wieder bei ${rg[0]} Wdh. starten.</div>`}
+ return `<div class="pohint"><b>Ziel heute:</b> ${kg?fmt(kg)+' kg × ':''}${rp+1} Wdh. – eine mehr als letztes Mal${rg?` (Ziel ${rg[0]}–${rg[1]}, darüber steigt das Gewicht)`:''}.</div>`}
+const INTRO=[
+ {k:'Warum tracken?',h:'Was du misst, wird besser.',t:'Dein Körper wird nur stärker, wenn du ihm jedes Mal ein bisschen mehr abverlangst. Ohne Notizen weisst du aber nicht, was „mehr“ ist. REPIT merkt sich jeden Satz und zeigt dir beim nächsten Mal genau, was du schlagen musst.'},
+ {k:'Progressive Overload',h:'Jedes Mal 1 Wiederholung mehr.',t:'Jede Übung hat einen Zielbereich, z. B. 6–8 Wdh. Du versuchst jedes Training eine Wiederholung mehr zu schaffen. Kommst du über den Zielbereich, nimmst du mehr Gewicht und fängst wieder unten an.',lad:true},
+ {k:'Rep it. Track it. Repeat.',h:'Immer das nächste Training.',t:'Deine Routinen laufen im Kreis: 1, 2, 3, 4 … und dann wieder von vorne. Keine festen Tage. Fällt ein Tag aus, machst du am nächsten freien Tag einfach das nächste Training. REPIT zeigt es dir mit „Als Nächstes“ an, und im Training steht bei jeder Übung dein Ziel für heute.'}];
+function sIntro(){const i=S.introStep||0,x=INTRO[i];return `<div class="eyebrow">${esc(x.k)}</div><h2 style="margin-top:4px">${esc(x.h)}</h2><p class="mini" style="line-height:1.55;margin-top:8px">${esc(x.t)}</p>
+ ${x.lad?`<div class="ladder">${[['Training 1','60 kg × 6','',''],['Training 2','60 kg × 7','','+1'],['Training 3','60 kg × 8','','+1'],['Training 4','60 kg × 9','g','über dem Ziel!'],['Training 5','62,5 kg × 6','o','neues Gewicht']].map(([a,b,c,d],j)=>`<div class="lad"><span class="muted">${a}</span><i class="${c}" style="width:${55+j*11}%">${b}${d?`<span style="margin-left:8px;font-weight:600;opacity:.8">${d}</span>`:''}</i></div>`).join('')}</div><p class="muted mini">Jeder Satz so nah wie möglich ans Muskelversagen. Saubere Technik geht immer vor.</p>`:''}
+ <div class="dots">${INTRO.map((_,j)=>`<span class="${j===i?'on':''}"></span>`).join('')}</div>
+ <div class="row" style="gap:8px;flex-wrap:nowrap">${i>0?'<button class="btn ghost" style="flex:1" data-act="intro-prev">Zurück</button>':''}<button class="btn gold" style="flex:2" data-act="intro-next">${i<INTRO.length-1?'Weiter':'Los geht’s'}</button></div>`}
+function introSeen(){try{return !!localStorage.getItem('hantelbuch.intro')}catch(e){return true}}
 function exCard(e,i,cur){
   const prev=prevFor(e.name)||[];
   const cardio=isCardio(e);
@@ -372,6 +394,7 @@ function exCard(e,i,cur){
   const lt=lastEx(e.name);
   return `<div class="card ex${cur?' cur':''}"><div class="ex-head"><div class="row" style="flex-wrap:nowrap;gap:10px;min-width:0;align-items:flex-start">${imgTag(e.name,'exthumb',`data-act="ex-open" data-v="${esc(e.name)}"`)}<div style="min-width:0"><h3 data-act="ex-open" data-v="${esc(e.name)}">${exTitle(e.name)}</h3><div class="muted mini">${lt?'Zuletzt '+ago(lt):'Erstes Mal'}${e.uni?` · <span style="color:var(--gold)">einseitig, Wechsel ${mmss(e.uniRest||15)}</span>`:''}</div>${cardio?'':targetBox(`data-in="ent" data-i="${i}"`,e.target)}${gearBtn(e.name)}</div></div>
   <div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn text sm" data-act="ex-menu" data-i="${i}" aria-label="Optionen">•••</button></div></div>
+  ${poHint(e)}
   ${noteBox(`data-in="ent" data-i="${i}"`,e.note,e.next,e.nextDate)}
   <table class="sets" style="margin-top:8px"><thead><tr><th>Satz</th><th>Vorher</th><th>${cardio?'':'kg'}</th><th>${cardio?'Min':'Wdh.'}</th><th></th></tr></thead><tbody>${rows}</tbody></table>
   <button class="btn text sm" style="margin-top:4px" data-act="add-set" data-i="${i}">+ Satz</button></div>`;
@@ -488,7 +511,7 @@ function renderSheet(){
   const sh=$('#sheet'),bd=$('#backdrop');
   if(!S.sheet){sh.hidden=true;bd.hidden=true;sh.innerHTML='';return}
   sh.hidden=false;bd.hidden=false;
-  const f=({picker:sPicker,menu:sMenu,routine:sRoutine,hist:sHist,ex:sEx,confirm:sConfirm,summary:sSummary,rest:sRestDefault,data:sData,setrest:sSetRest,rpe:sRpe,order:sOrder,rorder:sROrder,tpl:sTpl,client:sClient,share:sShare,planin:sPlanIn,pay:sPay,rday:sRDay,gender:sGender,gear:sGear})[S.sheet.type];
+  const f=({picker:sPicker,menu:sMenu,routine:sRoutine,hist:sHist,ex:sEx,confirm:sConfirm,summary:sSummary,rest:sRestDefault,data:sData,setrest:sSetRest,rpe:sRpe,order:sOrder,rorder:sROrder,tpl:sTpl,client:sClient,intro:sIntro,share:sShare,planin:sPlanIn,pay:sPay,rday:sRDay,gender:sGender,gear:sGear})[S.sheet.type];
   sh.innerHTML=`<div class="in"><div class="grab"></div>${f(S.sheet)}</div>`;growAll(sh);
 }
 function sPicker(){
@@ -570,8 +593,9 @@ function sData(){
   return `<h2>Daten</h2><div class="stack">
   <button class="btn gold full" data-act="import">Daten importieren</button>
   <button class="btn ghost full" data-act="export">Backup speichern</button>
+  <button class="btn ghost full" data-act="intro-open">So funktioniert REPIT</button>
   <p class="muted mini">Beim Importieren erkennt REPIT die Datei selbst: dein Backup, ein Trainingsplan vom Coach oder ein CSV-Export aus einer anderen Tracking-App. Doppelte Trainings werden nicht doppelt angelegt.</p>
-  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><div class="eyebrow" style="margin-top:6px">Abo</div><button class="btn ghost full" data-act="pay-open">${TIERS[tier()].n}${PAYWALL?'':' (Testphase: alles frei)'}</button><p class="muted mini">Version 17.10. 02:15</p></div>`;
+  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><div class="eyebrow" style="margin-top:6px">Abo</div><button class="btn ghost full" data-act="pay-open">${TIERS[tier()].n}${PAYWALL?'':' (Testphase: alles frei)'}</button><p class="muted mini">Version 17.10. 02:30</p></div>`;
 }
 
 /* ---------- Rest timer ---------- */
@@ -735,6 +759,9 @@ function finishWorkout(update){
 }
 
 const ACT={
+  'intro-open':()=>{S.introStep=0;openSheet({type:'intro'})},
+  'intro-prev':()=>{S.introStep=Math.max(0,(S.introStep||0)-1);renderSheet()},
+  'intro-next':()=>{if((S.introStep||0)<INTRO.length-1){S.introStep=(S.introStep||0)+1;renderSheet()}else{try{localStorage.setItem('hantelbuch.intro','1')}catch(e){}closeSheet()}},
   'r-client':(el)=>{S.edit.client=S.edit.client===el.dataset.v?undefined:el.dataset.v;renderSheet()},
   'rc':(el)=>{S.rclient=el.dataset.v;renderMain()},
   'cl-new':()=>{openSheet({type:'client'});setTimeout(()=>{const i=$('#clName');if(i)i.focus()},150)},
@@ -821,7 +848,7 @@ const ACT={
   'ord-mv':(el)=>{const i=+el.dataset.i,k=i+(+el.dataset.v),x=S.active.exercises;if(k<0||k>=x.length)return;[x[i],x[k]]=[x[k],x[i]];saveActive();renderSheet();renderMain()},
   'ex-uni':(el)=>{const e=S.active.exercises[+el.dataset.i];e.uni=!e.uni;if(!e.uniRest)e.uniRest=15;saveActive();renderSheet();renderMain()},
   'ex-unirest':(el)=>{S.active.exercises[+el.dataset.i].uniRest=+el.dataset.v;saveActive();renderSheet();renderMain()},
-  'gender':(el)=>{try{localStorage.setItem('hantelbuch.gender',el.dataset.v)}catch(e){}if(S.sheet&&S.sheet.type==='gender')closeSheet();else renderSheet();renderMain()},
+  'gender':(el)=>{try{localStorage.setItem('hantelbuch.gender',el.dataset.v)}catch(e){}if(S.sheet&&S.sheet.type==='gender'){closeSheet();if(!introSeen()){S.introStep=0;openSheet({type:'intro'});try{localStorage.setItem('hantelbuch.intro','1')}catch(e){}}}else renderSheet();renderMain()},
   'sound-test':()=>{unlockAudio();setTimeout(beep,80)},
   'r-samples':()=>{const mk=(name,list)=>({id:uid(),name,exercises:list.map(([n,s,r])=>({name:n,sets:s,rest:r}))});
     S.routines.push(mk('Beispiel: Oberkörper',[['Bankdrücken (Langhantel)',4,150],['Langhantelrudern',4,120],['Schulterdrücken (Kurzhantel)',3,90],['Latzug',3,90],['Kurzhantelcurls',3,60],['Trizepsdrücken am Kabel',3,60]]),
