@@ -124,6 +124,12 @@ tr.swiped td{background:rgba(220,80,80,.08)}
 .rcard h3{font-size:16px;line-height:1.2;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;margin:0}
 .rcard .rfoot{margin-top:auto;display:flex;gap:6px;align-items:center}
 .rcard .rfoot .btn.gold{flex:1;padding:0 8px}
+.rcard{position:relative}.rtop{display:flex;align-items:center;gap:8px}
+.rbadge{flex:none;min-width:30px;height:30px;padding:0 8px;border-radius:15px;background:var(--surface2);border:1px solid var(--line);color:var(--gold-hi);font-weight:800;font-size:13px;display:inline-flex;align-items:center;justify-content:center;font-family:inherit}
+button.rbadge{cursor:pointer}
+.rcard.next{border-color:rgba(201,162,74,.75);box-shadow:0 0 0 1px rgba(201,162,74,.25),0 0 22px rgba(201,162,74,.22)}
+.rcard.next .rbadge{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.nexttag{white-space:nowrap;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
 .vtag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--gold-ink);background:var(--gold);border-radius:6px;padding:2px 6px;vertical-align:middle;margin-left:4px}
 .howto{font-size:14px;line-height:1.5;margin:4px 0 10px}
 .exsep{display:flex;align-items:center;gap:10px;margin:22px 2px 14px;color:var(--muted);font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
@@ -312,7 +318,12 @@ function renderMain(){
   if(S.tab==='training'&&S.active)tick();
 }
 
-function routineCard(r){const lt=lastRoutine(r);return `<div class="card rcard"><h3>${esc(r.name)}</h3><div class="mini" style="color:${lt?'var(--gold)':'var(--muted)'}">${lt?'Zuletzt '+ago(lt):'Noch nie gemacht'}</div><div class="muted mini">${r.exercises.length} Übungen</div><div class="rfoot"><button class="btn gold sm" data-act="start-r" data-v="${r.id}">Start</button><button class="btn ghost sm" data-act="r-edit" data-v="${r.id}" aria-label="Routine bearbeiten">✎</button></div></div>`}
+const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
+function rLabel(){if(!S.rlabel){try{S.rlabel=localStorage.getItem('hantelbuch.rlabel')}catch(e){}}return S.rlabel||'num'}
+function nextRid(list){if(!list||list.length<2)return list&&list[0]?list[0].id:null;const ids=list.map(r=>r.id);const w=S.workouts.find(w=>ids.includes(w.routineId));if(!w)return list[0].id;return ids[(ids.indexOf(w.routineId)+1)%ids.length]}
+function routineCard(r,i,list){const lt=lastRoutine(r);const isNext=Array.isArray(list)&&nextRid(list)===r.id;const day=rLabel()==='day';
+ const badge=Array.isArray(list)?(day?`<button class="rbadge" data-act="r-day" data-v="${r.id}" aria-label="Wochentag wählen">${r.day?esc(r.day):'+ Tag'}</button>`:`<span class="rbadge">${i+1}</span>`):'';
+ return `<div class="card rcard${isNext?' next':''}"><div class="rtop">${badge}${isNext?'<span class="nexttag">Als Nächstes</span>':''}</div><h3>${esc(r.name)}</h3><div class="mini" style="color:${lt?'var(--gold)':'var(--muted)'}">${lt?'Zuletzt '+ago(lt):'Noch nie gemacht'}</div><div class="muted mini">${r.exercises.length} Übungen</div><div class="rfoot"><button class="btn gold sm" data-act="start-r" data-v="${r.id}">Start</button><button class="btn ghost sm" data-act="r-edit" data-v="${r.id}" aria-label="Routine bearbeiten">✎</button></div></div>`}
 function routineCardOld(r){const lt=lastRoutine(r);return `<div class="card"><div class="spread"><h3>${esc(r.name)}</h3><button class="btn text sm" data-act="r-edit" data-v="${r.id}">Bearbeiten</button></div>
 <div class="mini" style="margin-top:2px;color:${lt?'var(--gold)':'var(--muted)'}">${lt?'Zuletzt '+ago(lt)+' · '+fDate(lt):'Noch nie gemacht'}</div>
 <div class="muted mini" style="margin:6px 0 12px">${r.exercises.map(e=>`${e.sets} × ${esc(e.name)}${(e.target||TARGETS[e.name])?` <span style="color:var(--gold)">x${esc(String(e.target||TARGETS[e.name]).replace(/^x/i,''))}</span>`:''}`).join(' · ')||'Noch keine Übungen'}</div>
@@ -372,8 +383,14 @@ function vRoutines(){const list=myRoutines(),coach=S.rfolder==='coach';
   ${coach?'<div class="muted mini" style="margin-bottom:10px">Hier baust du Pläne für Kunden. Sie mischen sich nicht mit deinen eigenen Trainings. Über „Plan teilen“ schickst du sie als Datei oder Link.</div>':''}
   <div class="spread"><h2>${coach?'Kunden-Pläne':'Routinen'}</h2><span class="row" style="gap:6px;flex-wrap:nowrap">${list.length>1?'<button class="btn text sm" data-act="ro-open">Reihenfolge</button>':''}<button class="btn gold sm" data-act="r-new">+ Neu</button></span></div>
   <div class="row" style="gap:8px;margin-bottom:12px;flex-wrap:nowrap"><button class="btn ghost" style="flex:1" data-act="tpl-open">6er-Split Vorlage</button>${list.length?'<button class="btn ghost" style="flex:1" data-act="share-open">Plan teilen</button>':''}</div>
-  ${list.length?`<div class="rgrid">${list.map(routineCard).join('')}</div>`:emptyRoutines()}`;
+  ${!coach&&list.length>1?`<div class="spread" style="margin-bottom:10px"><span class="row" style="gap:6px"><button class="chip ${rLabel()!=='day'?'on':''}" data-act="r-label" data-v="num">1 · 2 · 3</button><button class="chip ${rLabel()==='day'?'on':''}" data-act="r-label" data-v="day">Wochentage</button></span></div>`:''}
+  ${list.length?`<div class="rgrid">${list.map(routineCard).join('')}</div>`:emptyRoutines()}
+  ${!coach?`<details class="oldnotes" style="margin-top:14px"><summary>Die REPIT-Idee ▾</summary><div class="card" style="margin-top:6px"><div class="mini" style="line-height:1.55">${esc(IDEA_TXT)}</div></div></details>`:''}`;
 }
+const IDEA_TXT='Hör auf, dein Training an feste Tage zu binden. Arbeite in einer Routine: Training 1, dann 2, dann 3, dann 4 … und danach geht es wieder von vorne los. Genau das steckt im Namen: Rep it. Track it. Repeat. Fällt ein Tag aus, ist das egal. Am nächsten Tag, an dem du trainieren kannst, machst du einfach das nächste Training. REPIT zeigt es dir mit „Als Nächstes“ an. Wer lieber feste Tage hat, kann oben auf Wochentage umstellen.';
+function sRDay({rid}){const r=S.routines.find(x=>x.id===rid);return `<div class="eyebrow">Wochentag</div><h2 style="margin-top:2px">${esc(r?r.name:'')}</h2>
+ <div class="row" style="gap:6px;margin:12px 0">${WD.map(d=>`<button class="chip ${r&&r.day===d?'on':''}" data-act="r-day-set" data-v="${d}">${d}</button>`).join('')}</div>
+ <button class="btn ghost full" data-act="r-day-set" data-v="">Kein fester Tag</button>`}
 
 function vHistory(){
   if(!S.workouts.length)return `<h2>Verlauf</h2><div class="empty"><strong>Noch keine Trainings</strong>Beendete Trainings landen hier, mit Volumen, Dauer und Rekorden.<div style="margin-top:12px"><button class="btn ghost sm" data-act="import">Daten aus Strong importieren</button></div></div>`;
@@ -467,7 +484,7 @@ function renderSheet(){
   const sh=$('#sheet'),bd=$('#backdrop');
   if(!S.sheet){sh.hidden=true;bd.hidden=true;sh.innerHTML='';return}
   sh.hidden=false;bd.hidden=false;
-  const f=({picker:sPicker,menu:sMenu,routine:sRoutine,hist:sHist,ex:sEx,confirm:sConfirm,summary:sSummary,rest:sRestDefault,data:sData,setrest:sSetRest,rpe:sRpe,order:sOrder,rorder:sROrder,tpl:sTpl,share:sShare,planin:sPlanIn,pay:sPay,gender:sGender,gear:sGear})[S.sheet.type];
+  const f=({picker:sPicker,menu:sMenu,routine:sRoutine,hist:sHist,ex:sEx,confirm:sConfirm,summary:sSummary,rest:sRestDefault,data:sData,setrest:sSetRest,rpe:sRpe,order:sOrder,rorder:sROrder,tpl:sTpl,share:sShare,planin:sPlanIn,pay:sPay,rday:sRDay,gender:sGender,gear:sGear})[S.sheet.type];
   sh.innerHTML=`<div class="in"><div class="grab"></div>${f(S.sheet)}</div>`;growAll(sh);
 }
 function sPicker(){
@@ -549,7 +566,7 @@ function sData(){
   <button class="btn gold full" data-act="import">Daten importieren</button>
   <button class="btn ghost full" data-act="export">Backup speichern</button>
   <p class="muted mini">Beim Importieren erkennt REPIT die Datei selbst: dein Backup, ein Trainingsplan vom Coach oder ein CSV-Export aus einer anderen Tracking-App. Doppelte Trainings werden nicht doppelt angelegt.</p>
-  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><div class="eyebrow" style="margin-top:6px">Abo</div><button class="btn ghost full" data-act="pay-open">${TIERS[tier()].n}${PAYWALL?'':' (Testphase: alles frei)'}</button><p class="muted mini">Version 17.10. 01:45</p></div>`;
+  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><div class="eyebrow" style="margin-top:6px">Abo</div><button class="btn ghost full" data-act="pay-open">${TIERS[tier()].n}${PAYWALL?'':' (Testphase: alles frei)'}</button><p class="muted mini">Version 17.10. 02:00</p></div>`;
 }
 
 /* ---------- Rest timer ---------- */
@@ -713,6 +730,9 @@ function finishWorkout(update){
 }
 
 const ACT={
+  'r-label':(el)=>{S.rlabel=el.dataset.v;try{localStorage.setItem('hantelbuch.rlabel',el.dataset.v)}catch(e){}renderMain()},
+  'r-day':(el)=>openSheet({type:'rday',rid:el.dataset.v}),
+  'r-day-set':(el)=>{const r=S.routines.find(x=>x.id===S.sheet.rid);if(r){if(el.dataset.v)r.day=el.dataset.v;else delete r.day;saveMeta()}closeSheet();renderMain()},
   'ex-mode':(el)=>{S.exMode=el.dataset.v;try{localStorage.setItem('hantelbuch.exmode',el.dataset.v)}catch(e){}renderMain()},
   'ex-cat':(el)=>{S.exCat=el.dataset.v;renderMain()},
   'pay-open':()=>{S.payWhy='';S.payNeed=tier()==='free'?'pro':'coach';openSheet({type:'pay'})},
