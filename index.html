@@ -136,6 +136,7 @@ button.rbadge{cursor:pointer}
 .effs{display:inline-block;min-width:15px;height:15px;line-height:15px;padding:0 3px;margin-left:3px;border-radius:4px;font-size:10px;font-weight:800;text-align:center;vertical-align:super;border:1px solid}
 .effs.e1{color:var(--ok);border-color:rgba(124,194,135,.6);background:rgba(124,194,135,.12)}.effs.e2{color:var(--gold-hi);border-color:rgba(201,162,74,.6);background:rgba(201,162,74,.12)}.effs.e3{color:#f0a35a;border-color:rgba(240,163,90,.6);background:rgba(240,163,90,.12)}.effs.e4{color:var(--bad);border-color:rgba(229,101,91,.6);background:rgba(229,101,91,.12)}
 .exmeta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-start;margin:-2px 0 4px}.exmeta .tgt,.exmeta .gear{margin:0}
+.lbox{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}.lbox img{max-width:100%;max-height:88vh;object-fit:contain}.lbox span{color:var(--muted);font-size:12px}
 .pgoal{font-size:11px;font-weight:800;color:var(--gold-hi);margin-top:2px}.pgoal.up{color:var(--ok)}
 .pohint{margin-top:8px;font-size:13px;line-height:1.4;padding:8px 10px;border-radius:10px;background:rgba(201,162,74,.08);border:1px solid rgba(201,162,74,.35)}
 .pohint b{color:var(--gold-hi)}.pohint.up{background:rgba(124,194,135,.10);border-color:rgba(124,194,135,.5)}.pohint.up b{color:var(--ok)}
@@ -268,6 +269,14 @@ function saveMeta(){if(refs){const d=clone({routines:S.routines,custom:S.custom,
 let actT;function saveActive(now){clearTimeout(actT);const go=()=>{if(refs){const a=S.active?clone(S.active):null;q('active',()=>a?refs.active.set({w:a}):refs.active.delete())}else lsSave()};now?go():actT=setTimeout(go,600)}
 function saveWorkout(w){if(refs){const d=clone(w);return q('w'+w.id,()=>refs.workouts.doc(w.id).set(d))}lsSave();return Promise.resolve()}
 function delWorkout(id){S.workouts=S.workouts.filter(w=>w.id!==id);if(refs)q('w'+id,()=>refs.workouts.doc(id).delete());else lsSave()}
+function sDay({date}){const b=S.body.find(x=>x.date===date)||{date,photos:[]};const ws=S.workouts.filter(w=>dayKey(w.start)===date);
+ return `<div class="eyebrow">Tag</div><div class="spread"><h2 style="margin-top:2px">${fDay(date)}</h2><span class="num" style="font-size:20px;font-weight:800;color:var(--gold-hi)">${b.weight?fmt(b.weight)+' kg':''}</span></div>
+ <div class="eyebrow" style="margin:12px 0 6px">Tagesnotiz</div><textarea class="nt" data-in="daynote" data-d="${date}" rows="3" placeholder="Wie ging’s dir? Schlaf, Essen, Energie …">${esc(b.note||'')}</textarea>
+ ${ws.length?`<div class="eyebrow" style="margin:14px 0 6px">Training an diesem Tag</div><div class="list">${ws.map(w=>`<button class="li" data-act="w-open" data-v="${w.id}"><span style="text-align:left"><span class="name">${esc(w.name)}</span>${w.note?`<br><span class="muted mini" style="white-space:pre-line">${esc(w.note)}</span>`:''}</span><span class="muted">›</span></button>`).join('')}</div>`:''}
+ <div class="eyebrow" style="margin:14px 0 6px">Form-Check</div>
+ ${b.photos&&b.photos.length?`<div class="stack">${b.photos.map(p=>`<div style="position:relative"><img ${phSrc(p)} alt="Form-Check vom ${fDay(date)}" data-act="ph-big" style="width:100%;border-radius:12px;display:block;background:var(--surface2);cursor:zoom-in"><button class="btn sm" data-act="ph-del" data-d="${date}" data-v="${esc(p.id)}" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.65);color:#fff;border:1px solid rgba(255,255,255,.25)">Löschen</button></div>`).join('')}</div>`:'<div class="muted mini">Noch kein Foto an diesem Tag.</div>'}
+ ${S.canPhotos?`<button class="btn ghost full" style="margin-top:10px" data-act="day-photo" data-v="${date}">+ Foto für diesen Tag</button>`:''}`}
+async function idbDel(k){try{const d=await idb();return new Promise(res=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=res;t.onerror=res})}catch(e){}}
 function saveBody(b){const i=S.body.findIndex(x=>x.date===b.date);if(i>=0)S.body[i]=b;else S.body.push(b);S.body.sort((a,c)=>c.date.localeCompare(a.date));if(refs){const d=clone(b);return q('b'+b.date,()=>refs.body.doc(b.date).set(d))}lsSave();return Promise.resolve()}
 
 let pendingRender=false;
@@ -499,10 +508,10 @@ function vBody(){
   <div class="card stack">
     ${S.canPhotos?`<div class="muted mini">Gleiches Licht, gleiche Pose, gleiche Uhrzeit. So siehst du Veränderungen am besten.</div>
     <div class="row" style="flex-wrap:nowrap;gap:8px"><input class="field" type="date" data-in="photodate" value="${S.photoDate||dayKey()}" max="${dayKey()}" style="flex:1"><button class="btn gold" data-act="photo">Foto hinzufügen</button></div>`:`<div class="muted mini">Fotos lassen sich nur speichern, wenn die App in deinem Konto geöffnet ist.</div>`}
-    ${today&&today.photos&&today.photos.length?`<div class="photos">${today.photos.map(p=>`<img ${phSrc(p)} alt="Form-Check vom ${fDay(today.date)}" loading="lazy">`).join('')}</div>`:''}
+    ${today&&today.photos&&today.photos.length?`<div class="photos" data-act="day-open" data-v="${today.date}" style="cursor:pointer">${today.photos.map(p=>`<img ${phSrc(p)} alt="Form-Check vom ${fDay(today.date)}" loading="lazy">`).join('')}</div><div class="muted mini">Tippe aufs Foto, um es groß zu sehen oder zu löschen.</div>`:''}
   </div>
-  ${photoDays.filter(b=>b.date!==dayKey()).length?`<h2>Frühere Fotos</h2><div class="stack">${photoDays.filter(b=>b.date!==dayKey()).map(b=>`<div class="daygrp"><div class="spread"><span class="eyebrow">${fDay(b.date)}</span><span class="muted mini num">${b.weight?fmt(b.weight)+' kg':''}</span></div><div class="photos">${b.photos.map(p=>`<img ${phSrc(p)} alt="Form-Check vom ${fDay(b.date)}" loading="lazy">`).join('')}</div></div>`).join('')}</div>`:''}
-  ${ws.length?`<h2>Einträge</h2><div class="list">${ws.slice().reverse().slice(0,30).map(b=>`<div class="li"><span>${fDay(b.date)}</span><span class="num" style="font-weight:700">${fmt(b.weight)} kg</span></div>`).join('')}</div>`:''}`;
+  ${photoDays.filter(b=>b.date!==dayKey()).length?`<h2>Frühere Fotos</h2><div class="stack">${photoDays.filter(b=>b.date!==dayKey()).map(b=>`<div class="daygrp" data-act="day-open" data-v="${b.date}" style="cursor:pointer"><div class="spread"><span class="eyebrow">${fDay(b.date)}</span><span class="muted mini num">${b.weight?fmt(b.weight)+' kg':''}</span></div><div class="photos">${b.photos.map(p=>`<img ${phSrc(p)} alt="Form-Check vom ${fDay(b.date)}" loading="lazy">`).join('')}</div></div>`).join('')}</div>`:''}
+  ${ws.length?`<h2>Einträge</h2><div class="list">${ws.slice().reverse().slice(0,30).map(b=>`<button class="li" data-act="day-open" data-v="${b.date}"><span>${fDay(b.date)}${b.note?' <span class="muted mini">✎</span>':''}${b.photos&&b.photos.length?' <span class="muted mini">📷</span>':''}</span><span class="num" style="font-weight:700">${fmt(b.weight)} kg ›</span></button>`).join('')}</div>`:''}`;
 }
 
 /* chart: points [{x:label,y}] */
@@ -530,7 +539,7 @@ function renderSheet(){
   const sh=$('#sheet'),bd=$('#backdrop');
   if(!S.sheet){sh.hidden=true;bd.hidden=true;sh.innerHTML='';return}
   sh.hidden=false;bd.hidden=false;
-  const f=({picker:sPicker,menu:sMenu,routine:sRoutine,hist:sHist,ex:sEx,confirm:sConfirm,summary:sSummary,rest:sRestDefault,data:sData,setrest:sSetRest,rpe:sRpe,order:sOrder,rorder:sROrder,tpl:sTpl,client:sClient,intro:sIntro,share:sShare,planin:sPlanIn,pay:sPay,rday:sRDay,gender:sGender,gear:sGear})[S.sheet.type];
+  const f=({picker:sPicker,menu:sMenu,routine:sRoutine,hist:sHist,ex:sEx,confirm:sConfirm,summary:sSummary,rest:sRestDefault,data:sData,setrest:sSetRest,rpe:sRpe,order:sOrder,rorder:sROrder,tpl:sTpl,client:sClient,day:sDay,intro:sIntro,share:sShare,planin:sPlanIn,pay:sPay,rday:sRDay,gender:sGender,gear:sGear})[S.sheet.type];
   sh.innerHTML=`<div class="in"><div class="grab"></div>${f(S.sheet)}</div>`;growAll(sh);
 }
 function sPicker(){
@@ -616,7 +625,7 @@ function sData(){
   <button class="btn ghost full" data-act="intro-open">So funktioniert REPIT</button>
   <div class="eyebrow" style="margin-top:6px">Hinweise im Training</div><div class="row" style="gap:6px">${[['full','Anfängerhilfe'],['short','Trainingshinweis'],['off','Aus']].map(([k,l])=>`<button class="chip ${poMode()===k?'on':''}" data-act="po-mode" data-v="${k}">${l}</button>`).join('')}</div><p class="muted mini">${poMode()==='full'?'Ausführliche Erklärung bei jeder Übung, ideal zum Lernen.':poMode()==='short'?'Nur das Wichtigste, z. B. „Gewicht hoch in Satz 1 · sonst +1 Wdh.“':'Keine Hinweise und keine vorausgefüllten Ziele.'}</p>
   <p class="muted mini">Beim Importieren erkennt REPIT die Datei selbst: dein Backup, ein Trainingsplan vom Coach oder ein CSV-Export aus einer anderen Tracking-App. Doppelte Trainings werden nicht doppelt angelegt.</p>
-  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><div class="eyebrow" style="margin-top:6px">Abo</div><button class="btn ghost full" data-act="pay-open">${TIERS[tier()].n}${PAYWALL?'':' (Testphase: alles frei)'}</button><p class="muted mini">Version 17.10. 03:30</p></div>`;
+  <div class="eyebrow" style="margin-top:6px">Übungsbilder</div><div class="row" style="gap:6px"><button class="chip ${gender()==='m'?'on':''}" data-act="gender" data-v="m">Mann</button><button class="chip ${gender()==='w'?'on':''}" data-act="gender" data-v="w">Frau</button></div><div class="eyebrow" style="margin-top:6px">Abo</div><button class="btn ghost full" data-act="pay-open">${TIERS[tier()].n}${PAYWALL?'':' (Testphase: alles frei)'}</button><p class="muted mini">Version 17.10. 08:05</p></div>`;
 }
 
 /* ---------- Rest timer ---------- */
@@ -789,6 +798,12 @@ function finishWorkout(update){
 }
 
 const ACT={
+  'ph-big':(el)=>{if(!el.src)return;const o=document.createElement('div');o.className='lbox';o.innerHTML=`<img src="${el.src}" alt=""><span>Tippen zum Schliessen</span>`;o.onclick=()=>o.remove();document.body.appendChild(o)},
+  'day-open':(el)=>{openSheet({type:'day',date:el.dataset.v});setTimeout(hydratePhotos,50)},
+  'day-photo':(el)=>{S.photoDate=el.dataset.v;closeSheet();ACT.photo()},
+  'w-open':(el)=>openSheet({type:'hist',id:el.dataset.v}),
+  'ph-del':(el)=>openSheet({type:'confirm',title:'Foto löschen?',text:'Das Foto wird von diesem Handy gelöscht. Das lässt sich nicht rückgängig machen.',yes:'Foto löschen',act:'ph-del-yes',v:el.dataset.d+'|'+el.dataset.v,danger:true}),
+  'ph-del-yes':async(el)=>{const [date,id]=el.dataset.v.split('|');const b=clone(S.body.find(x=>x.date===date)||{date,photos:[]});b.photos=(b.photos||[]).filter(p=>p.id!==id);await saveBody(b);if(String(id).startsWith('local-'))await idbDel('ph:'+id);toast('Foto gelöscht');openSheet({type:'day',date});setTimeout(hydratePhotos,50);renderMain()},
   'ex-warm':(el)=>{const n=S.active.exercises[+el.dataset.i].name;let x=warmList();if(x.includes(n))x=x.filter(v=>v!==n);else if(!/warm|aufw[äa]rm/i.test(n))x.push(n);else return toast('Diese Übung heisst schon Aufwärmen.');try{localStorage.setItem('hantelbuch.warmex',JSON.stringify(x))}catch(e){}renderSheet();renderMain()},
   'po-mode':(el)=>{try{localStorage.setItem('hantelbuch.pomode',el.dataset.v)}catch(e){}renderSheet();renderMain()},
   'intro-open':()=>{S.introStep=0;openSheet({type:'intro'})},
@@ -927,6 +942,7 @@ document.addEventListener('input',e=>{
   else if(k==='variant'){const i=+el.dataset.i,e=S.active.exercises[i];const old=e.name;const nn=baseName(old)+(el.value.trim()?' · '+el.value.trim():'');if(nn===old)return;e.name=nn;const r=S.active.routineId&&S.routines.find(x=>x.id===S.active.routineId);if(r){const re=r.exercises.find(x=>x.name===old);if(re){re.name=nn;saveMeta()}}if(S.sheet)S.sheet.title=nn;saveActive();clearTimeout(window._vt);window._vt=setTimeout(()=>{pendingRender=true},300)}
   else if(k==='tplbw'){S.tplBw=el.value}
   else if(k==='photodate'){S.photoDate=el.value}
+  else if(k==='daynote'){const d=el.dataset.d;const b=clone(S.body.find(x=>x.date===d)||{date:d,photos:[]});b.note=el.value;clearTimeout(window._dnt);window._dnt=setTimeout(()=>{saveBody(b);pendingRender=true},600)}
   else if(k==='goal'){S.goal=S.goal||{};S.goal[el.dataset.k]=el.value.replace(',','.');clearTimeout(window._glt);window._glt=setTimeout(()=>{saveMeta();pendingRender=true},700)}
   else if(k==='calc'){S.calc=S.calc||{};S.calc[el.dataset.k]=el.value;clearTimeout(window._clt);window._clt=setTimeout(()=>{const y=document.querySelector('#sheet .in').scrollTop;renderSheet();const a=document.querySelector('#sheet [data-k="'+el.dataset.k+'"]');document.querySelector('#sheet .in').scrollTop=y;if(a){a.focus();try{a.setSelectionRange(a.value.length,a.value.length)}catch(e){}}},500)}
   else if(k==='planname'){S.planName=el.value}
